@@ -39,7 +39,7 @@ class CartesiaService:
             "output_format": {
                 "container": settings.CARTESIA_OUTPUT_CONTAINER,
                 "encoding": settings.CARTESIA_OUTPUT_ENCODING,
-                "sample_rate": settings.ASSEMBLYAI_SAMPLE_RATE,
+                "sample_rate": settings.CARTESIA_SAMPLE_RATE,
             },
             "speed": speed or "normal",
         }
@@ -58,9 +58,15 @@ class CartesiaService:
 
         if response.is_error:
             logger.error("Cartesia TTS failed: %s", response.text)
+            detail = "Cartesia text-to-speech request failed"
+            if response.status_code in {401, 403}:
+                detail = (
+                    "Cartesia rejected the API key or access token. "
+                    "Check CARTESIA_API_KEY in .env and restart Docker."
+                )
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="Cartesia text-to-speech request failed",
+                detail=detail,
             )
 
         if not response.content:
@@ -92,4 +98,9 @@ async def post_with_retry(
                 response.status_code,
             )
             await asyncio.sleep(0.8 * attempt)
+    if last_response is None:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Cartesia text-to-speech request did not return a response",
+        )
     return last_response

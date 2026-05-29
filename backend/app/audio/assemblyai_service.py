@@ -187,4 +187,9 @@ async def post_with_retry(
                 response.status_code,
             )
             await asyncio.sleep(0.8 * attempt)
+    if last_response is None:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AssemblyAI request did not return a response",
+        )
     return last_response

@@ -36,7 +36,7 @@ export default function NewInterviewPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!cvFile || !jobFile) {
-      showToast({ kind: "error", title: "Missing files", description: "Upload both CV and job description." });
+      showToast({ kind: "error", title: "Faltan archivos", description: "Carga el CV y la descripción del puesto." });
       return;
     }
 
@@ -61,14 +61,14 @@ export default function NewInterviewPage() {
       setJobProgress(100);
       setJobStatus("indexed");
 
-      showToast({ kind: "success", title: "Interview ready", description: "Documents were uploaded and indexed." });
+      showToast({ kind: "success", title: "Entrevista lista", description: "Los documentos se cargaron e indexaron correctamente." });
     } catch (error) {
       setCvStatus((current) => (current === "uploading" ? "error" : current));
       setJobStatus((current) => (current === "uploading" ? "error" : current));
       showToast({
         kind: "error",
-        title: "Could not create interview",
-        description: error instanceof Error ? error.message : "Unexpected error",
+        title: "No se pudo crear la entrevista",
+        description: error instanceof Error ? error.message : "Error inesperado",
       });
     } finally {
       setSubmitting(false);
@@ -78,34 +78,34 @@ export default function NewInterviewPage() {
   return (
     <AppLayout>
       <div className="mb-6">
-        <p className="text-sm text-primary">Setup</p>
-        <h1 className="mt-1 text-3xl font-semibold">New interview</h1>
+        <p className="text-sm text-primary">Preparación</p>
+        <h1 className="mt-1 text-3xl font-semibold">Nueva entrevista</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Create the interview, upload the candidate context, and let the backend index everything for RAG before starting voice mode.
+          Crea la entrevista, carga el contexto del candidato y deja que el backend indexe todo antes de iniciar el modo por voz.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
         <Card className="glass-panel">
           <CardHeader>
-            <CardTitle>Interview details</CardTitle>
+            <CardTitle>Datos de la entrevista</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="candidate">Candidate name</Label>
+              <Label htmlFor="candidate">Nombre del candidato</Label>
               <Input id="candidate" required value={candidateName} onChange={(event) => setCandidateName(event.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="job">Position</Label>
+              <Label htmlFor="job">Puesto</Label>
               <Input id="job" required value={jobTitle} onChange={(event) => setJobTitle(event.target.value)} />
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="ownerName">Interviewer name</Label>
+                <Label htmlFor="ownerName">Nombre del entrevistador</Label>
                 <Input id="ownerName" required value={ownerName} onChange={(event) => setOwnerName(event.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ownerEmail">Interviewer email</Label>
+                <Label htmlFor="ownerEmail">Correo del entrevistador</Label>
                 <Input id="ownerEmail" required type="email" value={ownerEmail} onChange={(event) => setOwnerEmail(event.target.value)} />
               </div>
             </div>
@@ -123,11 +123,11 @@ export default function NewInterviewPage() {
               className="w-full"
             >
               {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Create and index
+              Crear e indexar
             </Button>
             {createdInterviewId ? (
               <Button type="button" variant="secondary" className="w-full" onClick={() => router.push(`/interviews/${createdInterviewId}`)}>
-                Start interview
+                Iniciar entrevista
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             ) : null}
@@ -136,8 +136,8 @@ export default function NewInterviewPage() {
 
         <div className="grid gap-4">
           <UploadCard
-            title="Candidate CV"
-            description="PDF file. It will be transcribed into chunks and embedded by the backend."
+            title="CV del candidato"
+            description="Archivo PDF. El backend lo procesa, lo divide en fragmentos y lo usa como contexto."
             accept="application/pdf,.pdf"
             file={cvFile}
             progress={cvProgress}
@@ -149,8 +149,8 @@ export default function NewInterviewPage() {
             }}
           />
           <UploadCard
-            title="Job Description"
-            description="PDF or TXT file. Used by the agent to adapt interview difficulty and topics."
+            title="Descripción del puesto"
+            description="Archivo PDF o TXT. La IA lo usa para adaptar la dificultad y los temas."
             accept="application/pdf,text/plain,.pdf,.txt"
             file={jobFile}
             progress={jobProgress}
@@ -162,7 +162,7 @@ export default function NewInterviewPage() {
             }}
           />
           {!createdInterviewId ? (
-            <EmptyState title="RAG indexing pending" description="After submission, upload responses confirm that the backend extracted text and indexed embeddings." />
+            <EmptyState title="Indexación pendiente" description="Al enviar el formulario, el sistema confirmará que extrajo el texto y preparó el contexto." />
           ) : null}
         </div>
       </form>

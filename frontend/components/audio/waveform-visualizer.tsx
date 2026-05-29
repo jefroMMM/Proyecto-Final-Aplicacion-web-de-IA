@@ -10,7 +10,7 @@ export function WaveformVisualizer({
   className?: string;
 }) {
   return (
-    <div className={cn("flex h-16 items-center justify-center gap-1 rounded-lg bg-white/[0.04] px-4", className)}>
+    <div className={cn("flex h-16 items-center justify-center gap-1 rounded-lg bg-white px-4 shadow-inner", className)}>
       {Array.from({ length: bars }).map((_, index) => (
         <span
           key={index}

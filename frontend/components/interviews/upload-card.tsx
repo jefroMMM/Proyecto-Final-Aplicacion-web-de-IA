@@ -32,7 +32,7 @@ export function UploadCard({
         <p className="text-sm text-muted-foreground">{description}</p>
       </CardHeader>
       <CardContent>
-        <Label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-white/15 bg-white/[0.03] p-6 text-center transition hover:bg-white/[0.06]">
+        <Label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center transition hover:bg-muted/50">
           {status === "uploading" ? (
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           ) : status === "indexed" ? (
@@ -40,7 +40,7 @@ export function UploadCard({
           ) : (
             <FileUp className="h-8 w-8 text-muted-foreground" />
           )}
-          <span className="mt-3 text-sm font-medium">{file?.name ?? "Choose file"}</span>
+          <span className="mt-3 text-sm font-medium">{file?.name ?? "Elegir archivo"}</span>
           <span className="mt-1 text-xs text-muted-foreground">{accept}</span>
           <input
             className="sr-only"
@@ -52,7 +52,7 @@ export function UploadCard({
         <div className="mt-4">
           <Progress value={progress} />
           <p className="mt-2 text-xs text-muted-foreground">
-            {status === "indexed" ? "Uploaded and indexed by RAG" : `${progress}%`}
+            {status === "indexed" ? "Archivo cargado e indexado" : `${progress}%`}
           </p>
         </div>
       </CardContent>

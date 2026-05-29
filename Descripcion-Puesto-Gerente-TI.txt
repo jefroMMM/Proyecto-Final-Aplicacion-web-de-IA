@@ -1,0 +1,72 @@
+Descripcion de puesto: Gerente de TI
+
+Resumen del puesto
+
+Buscamos un Gerente de Tecnologias de la Informacion responsable de liderar la estrategia, operacion y mejora continua del area de TI. La persona seleccionada debera asegurar que la infraestructura, los sistemas, los servicios tecnologicos y los procesos digitales de la organizacion funcionen de manera segura, eficiente y alineada con los objetivos del negocio.
+
+Responsabilidades principales
+
+- Definir y ejecutar la estrategia tecnologica de la organizacion.
+- Administrar la infraestructura de TI, incluyendo redes, servidores, almacenamiento, respaldos, comunicaciones y servicios en la nube.
+- Supervisar la seguridad informatica, controles de acceso, continuidad del negocio y planes de recuperacion ante desastres.
+- Liderar proyectos tecnologicos, desde la planificacion hasta la implementacion y seguimiento.
+- Coordinar al equipo de soporte, desarrollo, infraestructura o proveedores externos segun corresponda.
+- Evaluar, seleccionar e implementar herramientas, plataformas y soluciones tecnologicas.
+- Asegurar la disponibilidad, estabilidad y rendimiento de los sistemas criticos del negocio.
+- Gestionar presupuestos, compras, licencias, contratos y relaciones con proveedores tecnologicos.
+- Establecer politicas, procedimientos y buenas practicas de TI.
+- Dar seguimiento a indicadores de servicio, incidentes, tiempos de respuesta y satisfaccion de usuarios.
+- Promover la mejora continua, automatizacion de procesos y transformacion digital.
+- Comunicar avances, riesgos y necesidades tecnologicas a la gerencia general o direccion.
+
+Requisitos tecnicos
+
+- Experiencia administrando infraestructura tecnologica empresarial.
+- Conocimiento de redes, ciberseguridad, servidores, bases de datos, sistemas operativos y servicios cloud.
+- Experiencia con herramientas de gestion de proyectos, tickets, monitoreo y documentacion tecnica.
+- Capacidad para evaluar arquitectura de sistemas, integraciones y soluciones empresariales.
+- Conocimiento de respaldo, recuperacion de datos, continuidad operativa y gestion de riesgos.
+- Familiaridad con marcos de trabajo o buenas practicas como ITIL, COBIT, ISO 27001, Scrum o metodologias agiles.
+
+Requisitos de liderazgo
+
+- Experiencia liderando equipos tecnicos multidisciplinarios.
+- Capacidad para priorizar tareas, resolver conflictos y tomar decisiones bajo presion.
+- Habilidad para traducir necesidades del negocio en soluciones tecnologicas.
+- Comunicacion clara con usuarios tecnicos y no tecnicos.
+- Pensamiento estrategico, orientacion a resultados y enfoque en servicio.
+- Capacidad para gestionar proveedores, presupuestos y planes de trabajo.
+
+Experiencia requerida
+
+- Minimo 5 anos de experiencia en areas de tecnologia.
+- Minimo 2 anos en posiciones de liderazgo, coordinacion o gestion de equipos de TI.
+- Experiencia previa implementando proyectos tecnologicos relevantes para el negocio.
+
+Formacion deseada
+
+- Ingenieria en Sistemas, Informatica, Ciencias de la Computacion, Telecomunicaciones o carrera afin.
+- Deseable maestria, certificaciones tecnicas o certificaciones de gestion tecnologica.
+- Certificaciones deseables: ITIL, PMP, Scrum Master, ISO 27001, AWS, Azure, Google Cloud, Cisco, Microsoft o similares.
+
+Competencias clave
+
+- Liderazgo y gestion de equipos.
+- Planeacion estrategica.
+- Resolucion de problemas.
+- Gestion de riesgos.
+- Comunicacion efectiva.
+- Orientacion al servicio.
+- Pensamiento analitico.
+- Mejora continua.
+- Adaptabilidad al cambio.
+
+Indicadores de exito del puesto
+
+- Alta disponibilidad de los sistemas criticos.
+- Reduccion de incidentes recurrentes.
+- Cumplimiento de proyectos tecnologicos en tiempo y presupuesto.
+- Mejora en los tiempos de respuesta del soporte tecnico.
+- Fortalecimiento de la seguridad y continuidad operativa.
+- Mayor satisfaccion de los usuarios internos.
+- Alineacion de la tecnologia con los objetivos del negocio.

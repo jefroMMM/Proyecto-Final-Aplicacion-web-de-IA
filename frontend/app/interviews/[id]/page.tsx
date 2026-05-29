@@ -20,6 +20,14 @@ import { getTranscripts } from "@/lib/services/transcripts";
 import { useInterviewStore } from "@/store/interview-store";
 import type { InterviewDetail } from "@/types/api";
 
+const statusLabel = {
+  created: "Creada",
+  pending: "Pendiente",
+  in_progress: "En curso",
+  completed: "Completada",
+  cancelled: "Cancelada",
+} as const;
+
 export default function VoiceInterviewPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -43,7 +51,7 @@ export default function VoiceInterviewPage() {
         setTimeline(transcripts);
       })
       .catch((error) =>
-        showToast({ kind: "error", title: "Could not load interview", description: error instanceof Error ? error.message : "Unexpected error" }),
+        showToast({ kind: "error", title: "No se pudo cargar la entrevista", description: error instanceof Error ? error.message : "Error inesperado" }),
       )
       .finally(() => setLoading(false));
   }, [interviewId, setTimeline, showToast]);
@@ -63,7 +71,7 @@ export default function VoiceInterviewPage() {
       await playAudio(response.audio_url);
       await refreshTimeline();
     } catch (error) {
-      showToast({ kind: "error", title: "Could not start voice interview", description: error instanceof Error ? error.message : "Unexpected error" });
+      showToast({ kind: "error", title: "No se pudo iniciar la entrevista", description: error instanceof Error ? error.message : "Error inesperado" });
     } finally {
       setStarting(false);
     }
@@ -80,10 +88,10 @@ export default function VoiceInterviewPage() {
       await playAudio(response.audio_url);
       await refreshTimeline();
       if (response.interview_status === "finalized") {
-        showToast({ kind: "success", title: "Interview finalized", description: "The final report is ready." });
+        showToast({ kind: "success", title: "Entrevista finalizada", description: "El reporte final está listo." });
       }
     } catch (error) {
-      showToast({ kind: "error", title: "Voice turn failed", description: error instanceof Error ? error.message : "Unexpected error" });
+      showToast({ kind: "error", title: "No se pudo procesar la respuesta", description: error instanceof Error ? error.message : "Error inesperado" });
     } finally {
       setProcessingTurn(false);
     }
@@ -93,10 +101,10 @@ export default function VoiceInterviewPage() {
     setFinalizing(true);
     try {
       await finalizeInterview(interviewId);
-      showToast({ kind: "success", title: "Report generated" });
+      showToast({ kind: "success", title: "Reporte generado" });
       router.push(`/reports/${interviewId}`);
     } catch (error) {
-      showToast({ kind: "error", title: "Could not finalize", description: error instanceof Error ? error.message : "Unexpected error" });
+      showToast({ kind: "error", title: "No se pudo finalizar", description: error instanceof Error ? error.message : "Error inesperado" });
     } finally {
       setFinalizing(false);
     }
@@ -111,7 +119,7 @@ export default function VoiceInterviewPage() {
   if (loading) {
     return (
       <AppLayout>
-        <LoadingState label="Loading interview" />
+        <LoadingState label="Cargando entrevista" />
       </AppLayout>
     );
   }
@@ -121,16 +129,18 @@ export default function VoiceInterviewPage() {
       <audio ref={audioRef} className="hidden" />
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-sm text-primary">Voice interview</p>
+          <p className="text-sm text-primary">Entrevista por voz</p>
           <h1 className="mt-1 text-3xl font-semibold">{interview?.candidate_name}</h1>
           <p className="mt-2 text-sm text-muted-foreground">{interview?.job_title}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Badge variant={interview?.status === "completed" ? "success" : "default"}>{interview?.status}</Badge>
+          <Badge variant={interview?.status === "completed" ? "success" : "default"}>
+            {interview?.status ? statusLabel[interview.status] : ""}
+          </Badge>
           <Button asChild variant="secondary">
             <Link href={`/reports/${interviewId}`}>
               <FileText className="mr-2 h-4 w-4" />
-              Report
+              Reporte
             </Link>
           </Button>
         </div>
@@ -140,39 +150,39 @@ export default function VoiceInterviewPage() {
         <section className="space-y-4">
           <Card className="glass-panel">
             <CardHeader>
-              <CardTitle>Interview panel</CardTitle>
+              <CardTitle>Panel de entrevista</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="rounded-lg border border-white/10 bg-black/20 p-5">
-                <p className="text-xs uppercase text-muted-foreground">Current interviewer prompt</p>
-                <p className="mt-3 text-lg leading-8">{currentQuestion ?? "Start the interview to generate the first question."}</p>
+              <div className="rounded-lg border border-border bg-muted/35 p-5">
+                <p className="text-xs uppercase text-muted-foreground">Pregunta actual</p>
+                <p className="mt-3 text-lg leading-8">{currentQuestion ?? "Inicia la entrevista para generar la primera pregunta."}</p>
               </div>
 
               <div className="flex flex-wrap gap-2">
                 <Button onClick={handleStart} disabled={starting || isProcessingTurn}>
                   {starting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlayCircle className="mr-2 h-4 w-4" />}
-                  Start interview
+                  Iniciar entrevista
                 </Button>
                 <Button variant="secondary" onClick={handleFinalize} disabled={finalizing || isProcessingTurn}>
                   {finalizing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Square className="mr-2 h-4 w-4" />}
-                  Finalize
+                  Finalizar
                 </Button>
               </div>
 
               <VoiceRecorder disabled={isProcessingTurn || !currentQuestion} onRecordingReady={handleRecordingReady} />
 
-              {isProcessingTurn ? <LoadingState label="Transcribing, evaluating, and generating voice response" /> : null}
+              {isProcessingTurn ? <LoadingState label="Transcribiendo, evaluando y generando respuesta por voz" /> : null}
 
               {candidateTranscript ? (
-                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
-                  <p className="text-xs uppercase text-muted-foreground">Candidate transcript</p>
+                <div className="rounded-lg border border-border bg-muted/30 p-4">
+                  <p className="text-xs uppercase text-muted-foreground">Transcripción del candidato</p>
                   <p className="mt-2 text-sm leading-6">{candidateTranscript}</p>
                 </div>
               ) : null}
 
               {interviewerResponse ? (
-                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
-                  <p className="text-xs uppercase text-muted-foreground">Interviewer response</p>
+                <div className="rounded-lg border border-border bg-muted/30 p-4">
+                  <p className="text-xs uppercase text-muted-foreground">Respuesta del entrevistador</p>
                   <p className="mt-2 text-sm leading-6">{interviewerResponse}</p>
                   {audioUrl ? <audio className="mt-3 w-full" src={audioUrl} controls /> : null}
                 </div>
@@ -184,7 +194,7 @@ export default function VoiceInterviewPage() {
         <aside>
           <Card className="glass-panel">
             <CardHeader>
-              <CardTitle>Conversation timeline</CardTitle>
+              <CardTitle>Línea de conversación</CardTitle>
             </CardHeader>
             <CardContent>
               <TranscriptTimeline items={timeline} />

@@ -14,6 +14,14 @@ const statusVariant = {
   cancelled: "danger",
 } as const;
 
+const statusLabel = {
+  created: "Creada",
+  pending: "Pendiente",
+  in_progress: "En curso",
+  completed: "Completada",
+  cancelled: "Cancelada",
+} as const;
+
 export function InterviewCard({ interview }: { interview: Interview }) {
   return (
     <Card className="glass-panel">
@@ -24,7 +32,7 @@ export function InterviewCard({ interview }: { interview: Interview }) {
             <p className="mt-1 text-sm text-muted-foreground">{interview.job_title}</p>
           </div>
           <Badge variant={statusVariant[interview.status] ?? "secondary"}>
-            {interview.status}
+            {statusLabel[interview.status] ?? interview.status}
           </Badge>
         </div>
       </CardHeader>
@@ -37,13 +45,13 @@ export function InterviewCard({ interview }: { interview: Interview }) {
           <Button asChild size="sm">
             <Link href={`/interviews/${interview.id}`}>
               <Mic2 className="mr-2 h-4 w-4" />
-              Open
+              Abrir
             </Link>
           </Button>
           <Button asChild size="sm" variant="secondary">
             <Link href={`/reports/${interview.id}`}>
               <FileText className="mr-2 h-4 w-4" />
-              Report
+              Reporte
             </Link>
           </Button>
         </div>

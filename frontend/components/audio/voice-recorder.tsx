@@ -44,22 +44,22 @@ export function VoiceRecorder({
   }
 
   return (
-    <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+    <div className="rounded-lg border border-border bg-muted/30 p-4">
       <WaveformVisualizer active={isRecording} />
       <div className="mt-4 flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-medium">{isRecording ? "Listening..." : "Ready to record"}</p>
-          <p className="text-xs text-muted-foreground">Use your microphone to answer the current question.</p>
+          <p className="text-sm font-medium">{isRecording ? "Escuchando..." : "Listo para grabar"}</p>
+          <p className="text-xs text-muted-foreground">Usa tu micrófono para responder la pregunta actual.</p>
         </div>
         {isRecording ? (
           <Button variant="secondary" onClick={stopRecording}>
             <Square className="mr-2 h-4 w-4" />
-            Stop
+            Detener
           </Button>
         ) : (
           <Button disabled={disabled} onClick={startRecording}>
             <Mic className="mr-2 h-4 w-4" />
-            Record
+            Grabar
           </Button>
         )}
       </div>

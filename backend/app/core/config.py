@@ -30,7 +30,8 @@ class Settings(BaseSettings):
     CARTESIA_MODEL_ID: str = "sonic-2"
     CARTESIA_VERSION: str = "2026-03-01"
     CARTESIA_OUTPUT_CONTAINER: str = "wav"
-    CARTESIA_OUTPUT_ENCODING: str = "pcm_s16le"
+    CARTESIA_OUTPUT_ENCODING: str = "pcm_f32le"
+    CARTESIA_SAMPLE_RATE: int = 44100
 
     ASSEMBLYAI_SPEECH_MODEL: str = "best"
     ASSEMBLYAI_LANGUAGE_CODE: str = "es"

@@ -12,7 +12,14 @@ import { Button } from "@/components/ui/button";
 import { listInterviews } from "@/lib/services/interviews";
 import type { Interview, InterviewStatus } from "@/types/api";
 
-const filters: Array<"all" | InterviewStatus> = ["all", "created", "in_progress", "completed"];
+const filters = ["all", "created", "in_progress", "completed"] as const satisfies ReadonlyArray<"all" | InterviewStatus>;
+
+const filterLabels: Record<(typeof filters)[number], string> = {
+  all: "Todas",
+  created: "Creadas",
+  in_progress: "En curso",
+  completed: "Completadas",
+};
 
 export default function DashboardPage() {
   const [interviews, setInterviews] = useState<Interview[]>([]);
@@ -26,7 +33,7 @@ export default function DashboardPage() {
       .then(setInterviews)
       .catch((error) => {
         setInterviews([]);
-        setLoadError(error instanceof Error ? error.message : "Backend is not available");
+        setLoadError(error instanceof Error ? error.message : "El backend no está disponible");
       })
       .finally(() => setLoading(false));
   }, []);
@@ -45,29 +52,29 @@ export default function DashboardPage() {
     <AppLayout>
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm text-primary">Interviews</p>
-          <h1 className="mt-1 text-3xl font-semibold">Dashboard</h1>
+          <p className="text-sm text-primary">Entrevistas</p>
+          <h1 className="mt-1 text-3xl font-semibold">Panel de control</h1>
         </div>
         <div className="relative w-full md:max-w-sm">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Search interviews" value={search} onChange={(event) => setSearch(event.target.value)} />
+          <Input className="pl-9" placeholder="Buscar entrevistas" value={search} onChange={(event) => setSearch(event.target.value)} />
         </div>
       </div>
 
       <div className="mb-6 flex flex-wrap gap-2">
         {filters.map((item) => (
           <Button key={item} variant={filter === item ? "default" : "secondary"} size="sm" onClick={() => setFilter(item)}>
-            {item}
+            {filterLabels[item]}
           </Button>
         ))}
       </div>
 
-      {loading ? <LoadingState label="Loading interviews" /> : null}
+      {loading ? <LoadingState label="Cargando entrevistas" /> : null}
       {!loading && loadError ? (
-        <EmptyState title="Backend unavailable" description={loadError} actionHref="/" actionLabel="Back home" />
+        <EmptyState title="Backend no disponible" description={loadError} actionHref="/" actionLabel="Volver al inicio" />
       ) : null}
       {!loading && !loadError && filtered.length === 0 ? (
-        <EmptyState title="No interviews found" description="Create a new interview, upload documents, and start a voice session." actionHref="/interviews/new" actionLabel="New interview" />
+        <EmptyState title="No hay entrevistas" description="Crea una entrevista, carga los documentos y empieza una sesión por voz." actionHref="/interviews/new" actionLabel="Nueva entrevista" />
       ) : null}
       {!loading && !loadError && filtered.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

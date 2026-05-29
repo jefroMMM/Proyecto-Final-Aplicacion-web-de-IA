@@ -7,9 +7,9 @@ import { ArrowRight, BrainCircuit, Database, FileSearch, Mic2, Radio, Volume2 } 
 import { Button } from "@/components/ui/button";
 
 const steps = [
-  { title: "Upload context", description: "CV and job description are parsed, chunked, embedded, and indexed with pgvector.", icon: FileSearch },
-  { title: "Run voice interview", description: "AssemblyAI transcribes candidate answers while LangGraph drives the interviewer.", icon: Radio },
-  { title: "Generate report", description: "OpenAI structured outputs produce validated scores, feedback, seniority, and recommendation.", icon: BrainCircuit },
+  { title: "Carga el contexto", description: "El CV y la descripción del puesto se procesan, dividen e indexan para alimentar la entrevista.", icon: FileSearch },
+  { title: "Realiza la entrevista", description: "La plataforma transcribe las respuestas y adapta las preguntas según la conversación.", icon: Radio },
+  { title: "Genera el reporte", description: "La IA entrega puntajes, retroalimentación, nivel estimado y una recomendación final.", icon: BrainCircuit },
 ];
 
 const tech = ["Next.js 15", "FastAPI", "LangGraph", "OpenAI", "AssemblyAI", "Cartesia", "PostgreSQL", "pgvector"];
@@ -22,33 +22,33 @@ export default function LandingPage() {
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Mic2 className="h-5 w-5" />
           </div>
-          <span className="font-semibold">AI Technical Interviewer</span>
+          <span className="font-semibold">Entrevistador Técnico IA</span>
         </Link>
         <Button asChild variant="secondary">
-          <Link href="/dashboard">Dashboard</Link>
+          <Link href="/dashboard">Panel</Link>
         </Button>
       </nav>
 
       <section className="mx-auto grid max-w-7xl gap-10 px-6 pb-20 pt-12 lg:grid-cols-[1fr_0.8fr] lg:items-center">
         <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}>
           <div className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-sm text-primary">
-            Voice AI interviews with RAG and structured evaluation
+            Entrevistas por voz con IA y evaluación estructurada
           </div>
           <h1 className="mt-6 max-w-4xl text-5xl font-semibold leading-tight md:text-7xl">
-            Technical interviews that listen, adapt, and score with evidence.
+            Entrevistas técnicas que escuchan, se adaptan y evalúan con evidencia.
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground">
-            A full stack AI platform for university-grade technical interviews: voice input, RAG over candidate documents, adaptive questioning, and final reports.
+            Una plataforma completa para entrevistas técnicas: voz, contexto del candidato, preguntas adaptativas y reportes finales claros.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Button asChild size="lg">
               <Link href="/interviews/new">
-                Start Interview
+                Iniciar entrevista
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
             <Button asChild size="lg" variant="secondary">
-              <Link href="/dashboard">View Dashboard</Link>
+              <Link href="/dashboard">Ver panel</Link>
             </Button>
           </div>
         </motion.div>
@@ -59,19 +59,19 @@ export default function LandingPage() {
           transition={{ delay: 0.12 }}
           className="glass-panel rounded-2xl p-5"
         >
-          <div className="rounded-xl border border-white/10 bg-black/30 p-5">
+          <div className="rounded-xl border border-border bg-muted/30 p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Live interview</p>
-                <p className="mt-1 text-xl font-semibold">Backend Engineer</p>
+                <p className="text-sm text-muted-foreground">Entrevista en curso</p>
+                <p className="mt-1 text-xl font-semibold">Ingeniería Backend</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/15 text-primary">
                 <Volume2 className="h-6 w-6" />
               </div>
             </div>
             <div className="mt-8 space-y-4">
-              {["RAG context loaded", "Candidate answer transcribed", "Next question generated"].map((item, index) => (
-                <div key={item} className="flex items-center gap-3 rounded-lg bg-white/[0.04] p-3">
+              {["Contexto cargado", "Respuesta transcrita", "Siguiente pregunta lista"].map((item, index) => (
+                <div key={item} className="flex items-center gap-3 rounded-lg bg-white p-3 shadow-sm">
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-xs text-primary">{index + 1}</span>
                   <span className="text-sm">{item}</span>
                 </div>
@@ -103,18 +103,17 @@ export default function LandingPage() {
 
       <section className="mx-auto max-w-7xl px-6 pb-20 pt-10">
         <div className="glass-panel rounded-xl p-5">
-          <p className="text-sm text-muted-foreground">Technology stack</p>
+          <p className="text-sm text-muted-foreground">Tecnologías usadas</p>
           <div className="mt-4 flex flex-wrap gap-2">
             {tech.map((item) => (
-              <span key={item} className="rounded-md border border-white/10 bg-white/[0.05] px-3 py-2 text-sm">
+              <span key={item} className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
                 {item}
               </span>
             ))}
           </div>
         </div>
       </section>
-
-      <Database className="pointer-events-none absolute bottom-10 right-10 h-28 w-28 text-white/[0.03]" />
+      <Database className="pointer-events-none absolute bottom-10 right-10 h-28 w-28 text-primary/5" />
     </main>
   );
 }

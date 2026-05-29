@@ -6,10 +6,10 @@ type BadgeVariant = "default" | "secondary" | "success" | "warning" | "danger";
 
 const variants: Record<BadgeVariant, string> = {
   default: "border-primary/30 bg-primary/10 text-primary",
-  secondary: "border-white/10 bg-white/[0.06] text-muted-foreground",
-  success: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
-  warning: "border-amber-400/30 bg-amber-400/10 text-amber-300",
-  danger: "border-red-400/30 bg-red-400/10 text-red-300",
+  secondary: "border-border bg-muted text-muted-foreground",
+  success: "border-emerald-600/25 bg-emerald-50 text-emerald-700",
+  warning: "border-amber-600/25 bg-amber-50 text-amber-700",
+  danger: "border-red-600/25 bg-red-50 text-red-700",
 };
 
 export function Badge({

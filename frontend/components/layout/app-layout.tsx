@@ -9,19 +9,19 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen">
       <Sidebar />
       <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-white/10 bg-background/80 px-4 backdrop-blur-xl lg:px-8">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/85 px-4 backdrop-blur-xl lg:px-8">
           <Link href="/" className="flex items-center gap-2 lg:hidden">
             <Mic2 className="h-5 w-5 text-primary" />
-            <span className="text-sm font-semibold">AI Interviewer</span>
+            <span className="text-sm font-semibold">Entrevistador IA</span>
           </Link>
           <Button variant="ghost" size="icon" className="lg:hidden">
             <Menu className="h-5 w-5" />
           </Button>
           <div className="hidden text-sm text-muted-foreground lg:block">
-            Technical voice interviews with structured AI evaluation
+            Entrevistas técnicas por voz con evaluación estructurada
           </div>
           <Button asChild>
-            <Link href="/interviews/new">New interview</Link>
+            <Link href="/interviews/new">Nueva entrevista</Link>
           </Button>
         </header>
         <main className="px-4 py-6 lg:px-8">{children}</main>

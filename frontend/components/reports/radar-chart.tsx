@@ -23,18 +23,18 @@ export function RadarChart({
   consistencyScore,
 }: RadarChartProps) {
   const data = [
-    { subject: "Technical", score: technicalScore },
-    { subject: "Communication", score: communicationScore },
-    { subject: "Depth", score: depthScore },
-    { subject: "Consistency", score: consistencyScore },
+    { subject: "Técnico", score: technicalScore },
+    { subject: "Comunicación", score: communicationScore },
+    { subject: "Profundidad", score: depthScore },
+    { subject: "Consistencia", score: consistencyScore },
   ];
 
   return (
-    <div className="h-80 rounded-lg border border-white/10 bg-white/[0.03] p-4">
+    <div className="h-80 rounded-lg border border-border bg-muted/20 p-4">
       <ResponsiveContainer width="100%" height="100%">
         <RechartsRadarChart data={data}>
-          <PolarGrid stroke="rgba(255,255,255,0.12)" />
-          <PolarAngleAxis dataKey="subject" tick={{ fill: "rgba(255,255,255,0.7)", fontSize: 12 }} />
+          <PolarGrid stroke="rgba(71,85,105,0.22)" />
+          <PolarAngleAxis dataKey="subject" tick={{ fill: "rgba(51,65,85,0.82)", fontSize: 12 }} />
           <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
           <Radar
             dataKey="score"

@@ -17,6 +17,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getReport } from "@/lib/services/reports";
 import type { ReportRead } from "@/types/api";
 
+const seniorityLabel = {
+  junior: "Junior",
+  mid: "Intermedio",
+  senior: "Senior",
+} as const;
+
 export default function ReportPage() {
   const params = useParams<{ id: string }>();
   const interviewId = params.id;
@@ -27,7 +33,7 @@ export default function ReportPage() {
   useEffect(() => {
     getReport(interviewId)
       .then(setReport)
-      .catch((err) => setError(err instanceof Error ? err.message : "Report not found"))
+      .catch((err) => setError(err instanceof Error ? err.message : "Reporte no encontrado"))
       .finally(() => setLoading(false));
   }, [interviewId]);
 
@@ -43,7 +49,7 @@ export default function ReportPage() {
   if (loading) {
     return (
       <AppLayout>
-        <LoadingState label="Loading report" />
+        <LoadingState label="Cargando reporte" />
       </AppLayout>
     );
   }
@@ -51,7 +57,7 @@ export default function ReportPage() {
   if (error || !report || !structured) {
     return (
       <AppLayout>
-        <EmptyState title="Report not available" description={error ?? "Finalize the interview to generate the structured report."} actionHref={`/interviews/${interviewId}`} actionLabel="Open interview" />
+        <EmptyState title="Reporte no disponible" description={error ?? "Finaliza la entrevista para generar el reporte estructurado."} actionHref={`/interviews/${interviewId}`} actionLabel="Abrir entrevista" />
       </AppLayout>
     );
   }
@@ -63,27 +69,27 @@ export default function ReportPage() {
           <Button asChild variant="ghost" className="mb-3 px-0">
             <Link href={`/interviews/${interviewId}`}>
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to interview
+              Volver a la entrevista
             </Link>
           </Button>
-          <p className="text-sm text-primary">Final report</p>
+          <p className="text-sm text-primary">Reporte final</p>
           <h1 className="mt-1 text-3xl font-semibold">{structured.candidate_name}</h1>
           <p className="mt-2 text-sm text-muted-foreground">{structured.final_summary}</p>
         </div>
-        <Badge variant="success">{structured.seniority_estimation}</Badge>
+        <Badge variant="success">{seniorityLabel[structured.seniority_estimation]}</Badge>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <ScoreCard label="Technical" score={structured.technical_score} description="Correctness, depth, tradeoffs, and role alignment." />
-        <ScoreCard label="Communication" score={structured.communication_score} description="Clarity, structure, and spoken explanation quality." />
-        <ScoreCard label="Depth" score={depthScore} description="Average technical strength across evaluated answers." />
-        <ScoreCard label="Recommendation" score={recommendationScore(structured.recommendation)} description={structured.recommendation} />
+        <ScoreCard label="Técnico" score={structured.technical_score} description="Exactitud, profundidad, decisiones técnicas y ajuste al puesto." />
+        <ScoreCard label="Comunicación" score={structured.communication_score} description="Claridad, estructura y calidad de la explicación oral." />
+        <ScoreCard label="Profundidad" score={depthScore} description="Promedio de solidez técnica en las respuestas evaluadas." />
+        <ScoreCard label="Recomendación" score={recommendationScore(structured.recommendation)} description={structured.recommendation} />
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
         <Card className="glass-panel">
           <CardHeader>
-            <CardTitle>Score radar</CardTitle>
+            <CardTitle>Radar de puntajes</CardTitle>
           </CardHeader>
           <CardContent>
             <RadarChart
@@ -97,7 +103,7 @@ export default function ReportPage() {
 
         <Card className="glass-panel">
           <CardHeader>
-            <CardTitle>Detected technologies</CardTitle>
+            <CardTitle>Tecnologías detectadas</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
@@ -108,22 +114,22 @@ export default function ReportPage() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <FeedbackList title="Strengths" icon="success" items={structured.strengths} />
-        <FeedbackList title="Weaknesses" icon="danger" items={structured.weaknesses} />
+        <FeedbackList title="Fortalezas" icon="success" items={structured.strengths} />
+        <FeedbackList title="Áreas de mejora" icon="danger" items={structured.weaknesses} />
       </div>
 
       <Card className="glass-panel mt-6">
         <CardHeader>
-          <CardTitle>Questions and answers</CardTitle>
+          <CardTitle>Preguntas y respuestas</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {structured.answer_evaluations.map((item, index) => (
-            <article key={`${item.question}-${index}`} className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+            <article key={`${item.question}-${index}`} className="rounded-lg border border-border bg-muted/25 p-4">
               <p className="text-sm font-medium">{item.question}</p>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">{item.answer}</p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Badge>Technical {item.technical_score}</Badge>
-                <Badge variant="secondary">Communication {item.communication_score}</Badge>
+                <Badge>Técnico {item.technical_score}</Badge>
+                <Badge variant="secondary">Comunicación {item.communication_score}</Badge>
               </div>
             </article>
           ))}
@@ -142,8 +148,8 @@ function FeedbackList({ title, icon, items }: { title: string; icon: "success" |
       </CardHeader>
       <CardContent className="space-y-3">
         {items.map((item) => (
-          <div key={item} className="flex gap-3 rounded-lg bg-white/[0.03] p-3">
-            <Icon className={icon === "success" ? "h-4 w-4 text-emerald-300" : "h-4 w-4 text-red-300"} />
+          <div key={item} className="flex gap-3 rounded-lg bg-muted/25 p-3">
+            <Icon className={icon === "success" ? "h-4 w-4 text-emerald-600" : "h-4 w-4 text-red-600"} />
             <p className="text-sm leading-5 text-muted-foreground">{item}</p>
           </div>
         ))}

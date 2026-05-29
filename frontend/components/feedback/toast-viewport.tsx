@@ -29,7 +29,7 @@ export function ToastViewport() {
               exit={{ opacity: 0, x: 24, scale: 0.98 }}
               className={cn(
                 "glass-panel flex gap-3 rounded-lg p-4",
-                toast.kind === "error" && "border-red-400/25",
+                toast.kind === "error" && "border-red-300",
               )}
             >
               <Icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
