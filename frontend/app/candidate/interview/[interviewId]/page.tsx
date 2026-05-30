@@ -15,11 +15,10 @@ import { TranscriptPreview } from "@/components/candidate/transcript-preview";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import {
-  answerTemplateInterviewAudio,
   getInterview,
   getInterviewScore,
-  startTemplateInterview,
 } from "@/lib/services/interviews";
+import { sendVoiceAnswer, startVoiceInterview } from "@/lib/services/audio";
 import type { InterviewDetail, InterviewScore } from "@/types/api";
 
 type CandidateTimelineItem = {
@@ -59,6 +58,7 @@ export default function CandidateInterviewPage() {
       .then(([detail, scoreData]) => {
         setInterview(detail);
         setScore(scoreData);
+        setProgress(scoreData.percentage);
         setInterviewStatus(detail.status === "completed" ? "finalized" : "pending");
       })
       .catch((error) => {
@@ -78,7 +78,9 @@ export default function CandidateInterviewPage() {
 
   async function refreshScore() {
     try {
-      setScore(await getInterviewScore(interviewId));
+      const latest = await getInterviewScore(interviewId);
+      setScore(latest);
+      setProgress(latest.percentage);
     } catch {
       // keep previous score silently
     }
@@ -87,12 +89,13 @@ export default function CandidateInterviewPage() {
   async function handleStartInterview() {
     setStarting(true);
     try {
-      const response = await startTemplateInterview(interviewId);
-      setCurrentQuestion(response.current_question);
-      setProgress(response.progress_percentage);
-      setInterviewStatus(response.status === "finalized" ? "finalized" : "in_progress");
+      const response = await startVoiceInterview(interviewId);
+      setCurrentQuestion(response.interviewer_response);
+      setInterviewStatus(response.interview_status === "finalized" ? "finalized" : "in_progress");
       setWelcomeMode(false);
-      setTimeline((prev) => [...prev, { role: "interviewer", content: response.current_question }]);
+      setTimeline((prev) => [...prev, { role: "interviewer", content: response.interviewer_response }]);
+      await playInterviewerAudio(response.audio_url);
+      await refreshScore();
     } catch (error) {
       showToast({
         kind: "error",
@@ -137,12 +140,12 @@ export default function CandidateInterviewPage() {
   async function handleAudioUpload(blob: Blob) {
     setTranscribing(true);
     try {
-      const response = await answerTemplateInterviewAudio(interviewId, blob);
+      const response = await sendVoiceAnswer(interviewId, blob);
       setTranscribing(false);
       setAnalyzing(true);
 
       const transcript = response.candidate_transcript;
-      const nextQuestionText = response.next_question?.question_text ?? "";
+      const nextQuestionText = response.interviewer_response ?? "";
       const status = response.interview_status === "finalized" ? "finalized" : "in_progress";
 
       setCandidateTranscript(transcript);
@@ -154,16 +157,7 @@ export default function CandidateInterviewPage() {
       ]);
 
       setCurrentQuestion(nextQuestionText);
-      setScore((prev) =>
-        prev
-          ? { ...prev, ...response.current_score, status: status }
-          : {
-              interview_id: interviewId,
-              status: status,
-              ...response.current_score,
-            },
-      );
-      setProgress(response.current_score.percentage);
+      await playInterviewerAudio(response.audio_url);
       await refreshScore();
     } catch (error) {
       showToast({
@@ -250,6 +244,16 @@ export default function CandidateInterviewPage() {
 }
 
 function preferredMimeType(): string {
-  const options = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
+  const options = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"];
   return options.find((type) => MediaRecorder.isTypeSupported(type)) ?? "";
+}
+
+async function playInterviewerAudio(audioUrl: string) {
+  if (!audioUrl) return;
+  const audio = new Audio(audioUrl);
+  try {
+    await audio.play();
+  } catch {
+    // ignore autoplay restrictions
+  }
 }

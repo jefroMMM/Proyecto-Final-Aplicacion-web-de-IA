@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Copy, Loader2 } from "lucide-react";
 
 import { EmptyState } from "@/components/feedback/empty-state";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -51,6 +51,7 @@ export default function DashboardNewInterviewPage() {
     () => templates.find((item) => item.id === selectedTemplateId) ?? null,
     [selectedTemplateId, templates],
   );
+  const interviewUrl = createdInterviewId ? `${window.location.origin}/candidate/interview/${createdInterviewId}` : "";
 
   async function handleCreateInterview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -109,7 +110,21 @@ export default function DashboardNewInterviewPage() {
             </Button>
             {createdInterviewId ? (
               <div className="rounded-md border border-border bg-muted/15 p-3 text-sm">
-                Enlace entrevistado: <span className="font-medium">/candidate/interview/{createdInterviewId}</span>
+                <p>Enlace entrevistado:</p>
+                <p className="mt-1 break-all font-medium">{interviewUrl}</p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  className="mt-2"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(interviewUrl);
+                    showToast({ kind: "success", title: "Link copiado" });
+                  }}
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copiar enlace
+                </Button>
               </div>
             ) : null}
           </CardContent>

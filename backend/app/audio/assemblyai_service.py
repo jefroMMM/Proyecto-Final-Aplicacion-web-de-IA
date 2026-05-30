@@ -19,6 +19,17 @@ SUPPORTED_AUDIO_TYPES = {
     "video/webm",
 }
 
+SUPPORTED_AUDIO_PREFIXES = (
+    "audio/webm",
+    "video/webm",
+    "audio/wav",
+    "audio/x-wav",
+    "audio/mpeg",
+    "audio/mp3",
+    "audio/mp4",
+    "audio/ogg",
+)
+
 
 class AssemblyAIService:
     base_url = "https://api.assemblyai.com/v2"
@@ -155,7 +166,13 @@ class AssemblyAIService:
 
 
 def validate_audio_file(file: UploadFile) -> None:
-    if file.content_type not in SUPPORTED_AUDIO_TYPES:
+    content_type = (file.content_type or "").lower().strip()
+    normalized = content_type.split(";")[0].strip() if content_type else ""
+    is_supported = (
+        normalized in SUPPORTED_AUDIO_TYPES
+        or any(content_type.startswith(prefix) for prefix in SUPPORTED_AUDIO_PREFIXES)
+    )
+    if not is_supported:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             detail=(
