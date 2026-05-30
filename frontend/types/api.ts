@@ -209,6 +209,24 @@ export interface AnswerTurnResponse {
   total_questions: number;
 }
 
+export interface AudioAnswerResponse {
+  candidate_transcript: string;
+  evaluation: AnswerEvaluationV2;
+  current_score: {
+    initial_cv_score: number;
+    question_score: number;
+    bonus_score: number;
+    final_score: number;
+    max_score: number;
+    percentage: number;
+  };
+  next_question: {
+    id?: string | null;
+    question_text?: string | null;
+  };
+  interview_status: "in_progress" | "finalized" | "pending" | string;
+}
+
 export interface InterviewScore {
   interview_id: string;
   status: string;
@@ -218,6 +236,23 @@ export interface InterviewScore {
   final_score: number;
   max_score: number;
   percentage: number;
+  matched_skills?: string[];
+  missing_skills?: string[];
+}
+
+export interface AnalyzeCVResponse {
+  interview_id: string;
+  initial_cv_score: number;
+  matches: Array<{
+    id: string;
+    interview_id: string;
+    requirement_id: string;
+    skill_name: string;
+    matched: boolean;
+    evidence_text: string;
+    score_awarded: number;
+    created_at: string;
+  }>;
 }
 
 export interface CandidateReport {

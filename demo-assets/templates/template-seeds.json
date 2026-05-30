@@ -1,0 +1,312 @@
+{
+  "templates": [
+    {
+      "title": "Entrevista Backend Developer Junior",
+      "description": "Evaluacion tecnica para desarrollo backend con Python, APIs y bases de datos.",
+      "role_name": "Backend Developer Junior",
+      "requirements": [
+        {
+          "skill_name": "Python",
+          "description": "Fundamentos del lenguaje y buenas practicas.",
+          "weight": 1.0
+        },
+        {
+          "skill_name": "FastAPI",
+          "description": "Creacion de APIs y validacion con Pydantic.",
+          "weight": 1.0
+        },
+        {
+          "skill_name": "PostgreSQL",
+          "description": "Modelado basico, queries, joins e indices.",
+          "weight": 1.0
+        },
+        {
+          "skill_name": "Docker",
+          "description": "Contenerizacion y despliegue local.",
+          "weight": 1.0
+        },
+        {
+          "skill_name": "Git",
+          "description": "Flujo colaborativo con ramas y PRs.",
+          "weight": 1.0
+        },
+        {
+          "skill_name": "REST APIs",
+          "description": "Dise\u00f1o de endpoints y metodos HTTP.",
+          "weight": 1.0
+        }
+      ],
+      "questions": [
+        {
+          "question_text": "Explica que es Python y como lo usaste en backend.",
+          "expected_answer": "Debe mencionar APIs o servicios backend.",
+          "difficulty": "easy",
+          "points": 1,
+          "is_required": true,
+          "order_index": 0,
+          "requirement_ref": "__REQ__0"
+        },
+        {
+          "question_text": "Como conectar FastAPI con PostgreSQL usando SQLAlchemy?",
+          "expected_answer": "Sesion, modelos y manejo de transacciones.",
+          "difficulty": "medium",
+          "points": 1.5,
+          "is_required": true,
+          "order_index": 1,
+          "requirement_ref": "__REQ__2"
+        },
+        {
+          "question_text": "Que diferencia hay entre GET y POST en REST?",
+          "expected_answer": "GET consulta, POST crea recurso.",
+          "difficulty": "easy",
+          "points": 1,
+          "is_required": true,
+          "order_index": 2,
+          "requirement_ref": "__REQ__5"
+        },
+        {
+          "question_text": "Para que sirve Docker en un proyecto backend?",
+          "expected_answer": "Entorno reproducible y despliegue consistente.",
+          "difficulty": "easy",
+          "points": 1,
+          "is_required": true,
+          "order_index": 3,
+          "requirement_ref": "__REQ__3"
+        },
+        {
+          "question_text": "Como usar Git para trabajo en equipo?",
+          "expected_answer": "Ramas, commits claros y pull requests.",
+          "difficulty": "easy",
+          "points": 1,
+          "is_required": true,
+          "order_index": 4,
+          "requirement_ref": "__REQ__4"
+        }
+      ]
+    },
+    {
+      "title": "Entrevista Frontend React Developer",
+      "description": "Evaluacion tecnica para frontend moderno con React y TypeScript.",
+      "role_name": "Frontend React Developer",
+      "requirements": [
+        {
+          "skill_name": "JavaScript",
+          "description": "Fundamentos del lenguaje y asincronia.",
+          "weight": 1.0
+        },
+        {
+          "skill_name": "TypeScript",
+          "description": "Tipos, interfaces y seguridad de tipos.",
+          "weight": 1.0
+        },
+        {
+          "skill_name": "React",
+          "description": "Componentes, hooks y estado.",
+          "weight": 1.0
+        },
+        {
+          "skill_name": "Next.js",
+          "description": "Ruteo, renderizado y estructura de proyecto.",
+          "weight": 1.0
+        },
+        {
+          "skill_name": "CSS/Tailwind",
+          "description": "Estilos responsivos y buenas practicas.",
+          "weight": 1.0
+        },
+        {
+          "skill_name": "Testing",
+          "description": "Pruebas unitarias y de interfaz.",
+          "weight": 1.0
+        }
+      ],
+      "questions": [
+        {
+          "question_text": "Que ventajas te da TypeScript en un frontend grande?",
+          "expected_answer": "Seguridad de tipos y mantenibilidad.",
+          "difficulty": "medium",
+          "points": 1.5,
+          "is_required": true,
+          "order_index": 0,
+          "requirement_ref": "__REQ__1"
+        },
+        {
+          "question_text": "Como manejas estado global en React?",
+          "expected_answer": "Context, Zustand, Redux segun caso.",
+          "difficulty": "medium",
+          "points": 1.5,
+          "is_required": true,
+          "order_index": 1,
+          "requirement_ref": "__REQ__2"
+        },
+        {
+          "question_text": "Cuando usar SSR o SSG en Next.js?",
+          "expected_answer": "Decidir por SEO, performance y frescura de datos.",
+          "difficulty": "hard",
+          "points": 2,
+          "is_required": true,
+          "order_index": 2,
+          "requirement_ref": "__REQ__3"
+        },
+        {
+          "question_text": "Como aseguras UI responsive con Tailwind?",
+          "expected_answer": "Breakpoints y layout adaptativo.",
+          "difficulty": "easy",
+          "points": 1,
+          "is_required": true,
+          "order_index": 3,
+          "requirement_ref": "__REQ__4"
+        },
+        {
+          "question_text": "Que pruebas har\u00edas para un formulario critico?",
+          "expected_answer": "Unitarias, integracion y edge cases.",
+          "difficulty": "medium",
+          "points": 1,
+          "is_required": true,
+          "order_index": 4,
+          "requirement_ref": "__REQ__5"
+        }
+      ]
+    },
+    {
+      "title": "Entrevista Data Analyst Junior",
+      "description": "Evaluacion para analisis de datos con SQL, Python y visualizacion.",
+      "role_name": "Data Analyst Junior",
+      "requirements": [
+        {
+          "skill_name": "SQL",
+          "description": "Consultas, joins, agregaciones y limpieza.",
+          "weight": 1.0
+        },
+        {
+          "skill_name": "Python",
+          "description": "Pandas para transformacion de datos.",
+          "weight": 1.0
+        },
+        {
+          "skill_name": "Power BI",
+          "description": "Dashboards y KPIs.",
+          "weight": 1.0
+        },
+        {
+          "skill_name": "Excel",
+          "description": "Formulas, tablas dinamicas y analisis.",
+          "weight": 1.0
+        },
+        {
+          "skill_name": "Estadistica",
+          "description": "Medidas descriptivas e inferencia basica.",
+          "weight": 1.0
+        }
+      ],
+      "questions": [
+        {
+          "question_text": "Como limpiar\u00edas un dataset con valores nulos?",
+          "expected_answer": "Estrategia de imputacion o descarte justificado.",
+          "difficulty": "medium",
+          "points": 1.5,
+          "is_required": true,
+          "order_index": 0,
+          "requirement_ref": "__REQ__1"
+        },
+        {
+          "question_text": "Cuando usar INNER JOIN vs LEFT JOIN?",
+          "expected_answer": "Definir comportamiento por necesidad de filas.",
+          "difficulty": "medium",
+          "points": 1.5,
+          "is_required": true,
+          "order_index": 1,
+          "requirement_ref": "__REQ__0"
+        },
+        {
+          "question_text": "Que KPIs pondrias en un dashboard comercial?",
+          "expected_answer": "Ventas, conversion, ticket promedio.",
+          "difficulty": "easy",
+          "points": 1,
+          "is_required": true,
+          "order_index": 2,
+          "requirement_ref": "__REQ__2"
+        },
+        {
+          "question_text": "Como validar\u00edas conclusiones estadisticas basicas?",
+          "expected_answer": "Revisar distribucion, sesgo y tama\u00f1o muestral.",
+          "difficulty": "medium",
+          "points": 1,
+          "is_required": true,
+          "order_index": 3,
+          "requirement_ref": "__REQ__4"
+        }
+      ]
+    },
+    {
+      "title": "Entrevista DevOps Junior",
+      "description": "Evaluacion para perfil DevOps con CI/CD, contenedores y cloud basico.",
+      "role_name": "DevOps Junior",
+      "requirements": [
+        {
+          "skill_name": "Linux",
+          "description": "Comandos, procesos y permisos.",
+          "weight": 1.0
+        },
+        {
+          "skill_name": "Docker",
+          "description": "Imagenes, contenedores y redes.",
+          "weight": 1.0
+        },
+        {
+          "skill_name": "CI/CD",
+          "description": "Pipelines de build, test y deploy.",
+          "weight": 1.0
+        },
+        {
+          "skill_name": "Cloud",
+          "description": "Servicios basicos de AWS/Azure/GCP.",
+          "weight": 1.0
+        },
+        {
+          "skill_name": "Monitoring",
+          "description": "Observabilidad y alertas.",
+          "weight": 1.0
+        }
+      ],
+      "questions": [
+        {
+          "question_text": "Que comandos Linux usas para diagnosticar un servicio caido?",
+          "expected_answer": "ps, journalctl, netstat/ss, logs.",
+          "difficulty": "medium",
+          "points": 1.5,
+          "is_required": true,
+          "order_index": 0,
+          "requirement_ref": "__REQ__0"
+        },
+        {
+          "question_text": "Como optimizar\u00edas un Dockerfile?",
+          "expected_answer": "Capas, imagen base ligera, cache.",
+          "difficulty": "medium",
+          "points": 1.5,
+          "is_required": true,
+          "order_index": 1,
+          "requirement_ref": "__REQ__1"
+        },
+        {
+          "question_text": "Que etapas incluirias en un pipeline CI/CD?",
+          "expected_answer": "build, test, quality gates, deploy.",
+          "difficulty": "medium",
+          "points": 1.5,
+          "is_required": true,
+          "order_index": 2,
+          "requirement_ref": "__REQ__2"
+        },
+        {
+          "question_text": "Que monitorear\u00edas en producci\u00f3n?",
+          "expected_answer": "latencia, errores, CPU, memoria y alertas.",
+          "difficulty": "easy",
+          "points": 1,
+          "is_required": true,
+          "order_index": 3,
+          "requirement_ref": "__REQ__4"
+        }
+      ]
+    }
+  ]
+}

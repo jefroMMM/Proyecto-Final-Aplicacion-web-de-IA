@@ -1,0 +1,35 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
+3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj
+4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
+5 0 obj << /Length 407 >> stream
+BT
+/F1 11 Tf
+72 790 Td
+14 TL
+(CV Demo - Data Analyst Junior \(MATCH\)) Tj
+T* () Tj
+T* (Ana Morales) Tj
+T* (Data Analyst Junior) Tj
+T* (SQL para consultas con joins y agregaciones.) Tj
+T* (Python \(Pandas\) para limpieza y transformacion de datos.) Tj
+T* (Power BI para dashboards de ventas y desempeÒo.) Tj
+T* (Excel avanzado con tablas dinamicas y formulas.) Tj
+T* (Bases de estadistica descriptiva.) Tj
+ET
+endstream endobj
+xref
+0 6
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000247 00000 n 
+0000000317 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+775
+%%EOF

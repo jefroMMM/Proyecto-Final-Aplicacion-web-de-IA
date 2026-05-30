@@ -1,5 +1,7 @@
 import { apiRequest } from "@/lib/api";
 import type {
+  AudioAnswerResponse,
+  AnalyzeCVResponse,
   AnswerTurnResponse,
   CandidateReport,
   Interview,
@@ -42,7 +44,7 @@ export async function uploadInterviewCv(interviewId: string, file: File) {
 }
 
 export async function analyzeInterviewCv(interviewId: string) {
-  return apiRequest(`/interviews/${interviewId}/analyze-cv`, {
+  return apiRequest<AnalyzeCVResponse>(`/interviews/${interviewId}/analyze-cv`, {
     method: "POST",
   });
 }
@@ -60,11 +62,11 @@ export async function answerTemplateInterview(interviewId: string, answer: strin
   });
 }
 
-export async function answerTemplateInterviewAudio(interviewId: string, audioBlob: Blob): Promise<AnswerTurnResponse> {
+export async function answerTemplateInterviewAudio(interviewId: string, audioBlob: Blob): Promise<AudioAnswerResponse> {
   const extension = mimeToExtension(audioBlob.type);
   const form = new FormData();
   form.append("file", audioBlob, `answer.${extension}`);
-  return apiRequest<AnswerTurnResponse>(`/interviews/${interviewId}/audio-answer`, {
+  return apiRequest<AudioAnswerResponse>(`/interviews/${interviewId}/audio-answer`, {
     method: "POST",
     body: form,
   });

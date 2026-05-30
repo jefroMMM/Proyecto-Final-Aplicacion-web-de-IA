@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     NEXT_PUBLIC_API_URL: str = "http://localhost:8000"
     PUBLIC_BACKEND_URL: str = "http://localhost:8000"
     AUDIO_STORAGE_DIR: str = "storage/audio"
+    SEED_DEMO_TEMPLATES: bool = True
 
     @computed_field
     @property

@@ -22,7 +22,9 @@ from app.repositories import (
     transcripts as transcript_repository,
 )
 from app.schemas.template import (
+    AnalyzeCVResponse,
     AnswerEvaluation,
+    CVMatchAnalysisResult,
     InterviewCreateV2,
     InterviewFinalReport,
 )
@@ -93,6 +95,7 @@ async def analyze_cv_against_template(
     if not requirements:
         raise HTTPException(status_code=409, detail="Template has no requirements")
 
+    logger.info("Analyzing CV for interview_id=%s against template requirements", interview_id)
     raw_matches = await _run_cv_match_llm(
         cv_text=cv_document.content_text,
         requirements=[item.skill_name for item in requirements],
@@ -126,7 +129,19 @@ async def analyze_cv_against_template(
     interview.initial_cv_score = initial_score
     _refresh_interview_totals(interview)
     await session.commit()
-    return await match_repository.list_skill_matches(session, interview.id)
+    persisted_matches = await match_repository.list_skill_matches(session, interview.id)
+    logger.info(
+        "CV analysis completed interview_id=%s initial_cv_score=%s matched=%s total_requirements=%s",
+        interview_id,
+        float(initial_score),
+        len([item for item in persisted_matches if item.matched]),
+        len(persisted_matches),
+    )
+    return AnalyzeCVResponse(
+        interview_id=interview.id,
+        initial_cv_score=float(initial_score),
+        matches=persisted_matches,
+    )
 
 
 async def start_template_interview(
@@ -176,6 +191,12 @@ async def submit_text_answer(
         role="candidate",
         content=answer_text,
     )
+    cv_context = ""
+    if interview.cv_document_id:
+        documents = await document_repository.list_documents_by_interview_id(session, interview_id)
+        cv_document = next((doc for doc in documents if doc.document_type == "cv"), None)
+        if cv_document:
+            cv_context = cv_document.content_text[:6000]
 
     cv_match = None
     if current_question.requirement_id:
@@ -190,8 +211,10 @@ async def submit_text_answer(
         expected_answer=current_question.expected_answer,
         skill_name=current_question.requirement.skill_name if current_question.requirement else "",
         candidate_answer=answer_text,
+        cv_context=cv_context,
         skill_in_cv=cv_match.matched if cv_match else False,
     )
+    evaluation = _normalize_obvious_incorrect_cases(evaluation, answer_text)
 
     base_score = _to_decimal(evaluation.base_score)
     if evaluation.status == "correct":
@@ -250,6 +273,8 @@ async def submit_text_answer(
         "status": "finalized" if interview.status == "completed" else "in_progress",
         "evaluation": evaluation,
         "next_question": next_question.question_text if next_question else None,
+        "next_question_id": str(next_question.id) if next_question else None,
+        "can_finalize": next_question is None,
         "question_index": len(updated_answers),
         "total_questions": total_questions,
         "candidate_transcript": answer_text,
@@ -259,9 +284,12 @@ async def submit_text_answer(
 
 async def get_score(session: AsyncSession, interview_id: uuid.UUID):
     interview = await _require_interview_with_template(session, interview_id)
+    matches = await match_repository.list_skill_matches(session, interview_id)
     percentage = 0.0
     if float(interview.max_score) > 0:
         percentage = round((float(interview.final_score) / float(interview.max_score)) * 100, 2)
+    matched_skills = [item.skill_name for item in matches if item.matched]
+    missing_skills = [item.skill_name for item in matches if not item.matched]
     return {
         "interview_id": interview.id,
         "status": "finalized" if interview.status == "completed" else interview.status,
@@ -271,6 +299,8 @@ async def get_score(session: AsyncSession, interview_id: uuid.UUID):
         "final_score": float(interview.final_score),
         "max_score": float(interview.max_score),
         "percentage": percentage,
+        "matched_skills": matched_skills,
+        "missing_skills": missing_skills,
     }
 
 
@@ -278,6 +308,11 @@ async def finalize_interview(session: AsyncSession, interview_id: uuid.UUID):
     interview = await _require_interview_with_template(session, interview_id)
     answers = await answer_repository.list_answers(session, interview_id)
     skill_matches = await match_repository.list_skill_matches(session, interview_id)
+    percentage = (
+        round((float(interview.final_score) / float(interview.max_score)) * 100, 2)
+        if float(interview.max_score) > 0
+        else 0
+    )
     report_data = await _run_report_generation_llm(
         candidate_name=interview.candidate_name,
         role_name=interview.template.role_name,
@@ -292,11 +327,7 @@ async def finalize_interview(session: AsyncSession, interview_id: uuid.UUID):
             for answer in answers
         ],
         final_score=float(interview.final_score),
-        percentage=(
-            round((float(interview.final_score) / float(interview.max_score)) * 100, 2)
-            if float(interview.max_score) > 0
-            else 0
-        ),
+        percentage=percentage,
     )
 
     detected = [item.skill_name for item in skill_matches if item.matched]
@@ -314,14 +345,12 @@ async def finalize_interview(session: AsyncSession, interview_id: uuid.UUID):
         "bonus_score": float(interview.bonus_score),
         "final_score": float(interview.final_score),
         "max_score": float(interview.max_score),
-        "percentage": (
-            round((float(interview.final_score) / float(interview.max_score)) * 100, 2)
-            if float(interview.max_score) > 0
-            else 0
-        ),
+        "percentage": percentage,
         "strengths": report_data.get("strengths", []),
         "weaknesses": report_data.get("weaknesses", []),
-        "recommendation": report_data.get("recommendation", "needs_review"),
+        "recommendation": _normalize_recommendation(
+            report_data.get("recommendation", "needs_review")
+        ),
         "final_summary": report_data.get("final_summary", ""),
     }
     interview.status = "completed"
@@ -385,37 +414,50 @@ def _build_progress_payload(interview, question_text: str, question_index: int, 
 
 
 async def _run_cv_match_llm(*, cv_text: str, requirements: list[str]) -> list[dict]:
-    factory = OpenAIClientFactory()
-    client = factory.create()
-    response = await client.chat.completions.create(
-        model="gpt-4o-mini",
-        temperature=0,
-        response_format={"type": "json_object"},
-        messages=[
-            {"role": "system", "content": CV_MATCH_SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": json.dumps({"cv_text": cv_text[:18000], "requirements": requirements}),
-            },
-        ],
-    )
-    payload_text = response.choices[0].message.content or "{}"
-    payload = json.loads(payload_text)
-    matches = payload.get("matches", [])
-    if not isinstance(matches, list):
-        return []
-    normalized = []
-    for item in matches:
-        if not isinstance(item, dict):
-            continue
-        normalized.append(
-            {
-                "skill_name": str(item.get("skill_name", "")).strip(),
-                "matched": bool(item.get("matched", False)),
-                "evidence_text": str(item.get("evidence_text", "")),
-            }
+    try:
+        factory = OpenAIClientFactory()
+        client = factory.create()
+        response = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": CV_MATCH_SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": json.dumps(
+                        {
+                            "cv_text": cv_text[:18000],
+                            "requirements": requirements,
+                            "aliases": {
+                                "PostgreSQL": ["Postgres"],
+                                "REST APIs": ["API REST", "REST"],
+                                "JavaScript": ["JS"],
+                                "FastAPI": ["Fast API"],
+                                "Git": ["GitHub", "control de versiones"],
+                            },
+                        }
+                    ),
+                },
+            ],
         )
-    return normalized
+    except Exception as exc:
+        logger.exception("OpenAI CV analysis request failed")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="CV analysis provider request failed",
+        ) from exc
+
+    payload_text = response.choices[0].message.content or "{}"
+    try:
+        parsed = CVMatchAnalysisResult.model_validate(json.loads(payload_text))
+        return [item.model_dump() for item in parsed.matches]
+    except Exception as exc:
+        logger.exception("CV analysis structured output validation failed")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="CV analysis response format was invalid",
+        ) from exc
 
 
 async def _run_answer_evaluation_llm(
@@ -424,6 +466,7 @@ async def _run_answer_evaluation_llm(
     expected_answer: str,
     skill_name: str,
     candidate_answer: str,
+    cv_context: str,
     skill_in_cv: bool,
 ) -> AnswerEvaluation:
     factory = OpenAIClientFactory()
@@ -442,6 +485,7 @@ async def _run_answer_evaluation_llm(
                         "expected_answer": expected_answer,
                         "skill_name": skill_name,
                         "candidate_answer": candidate_answer,
+                        "cv_context": cv_context,
                         "skill_in_cv": skill_in_cv,
                         "required_schema": {
                             "status": "correct | partially_correct | incorrect | unknown",
@@ -475,6 +519,32 @@ async def _run_answer_evaluation_llm(
         )
 
 
+def _normalize_obvious_incorrect_cases(
+    evaluation: AnswerEvaluation,
+    answer_text: str,
+) -> AnswerEvaluation:
+    normalized = answer_text.strip().lower()
+    no_knowledge_patterns = (
+        "no se",
+        "no sé",
+        "no estoy seguro",
+        "no recuerdo",
+        "ni idea",
+    )
+    if any(pattern in normalized for pattern in no_knowledge_patterns):
+        return AnswerEvaluation(
+            status="incorrect",
+            base_score=0,
+            bonus_score=0,
+            final_score=0,
+            feedback="La respuesta indica que no hay conocimiento suficiente sobre el tema evaluado.",
+            reasoning_summary="Explicit no-knowledge phrase detected.",
+            detected_knowledge=[],
+            confidence=max(evaluation.confidence, 0.9),
+        )
+    return evaluation
+
+
 async def _run_report_generation_llm(
     *,
     candidate_name: str,
@@ -484,34 +554,54 @@ async def _run_report_generation_llm(
     final_score: float,
     percentage: float,
 ) -> dict:
-    factory = OpenAIClientFactory()
-    client = factory.create()
-    response = await client.chat.completions.create(
-        model="gpt-4o-mini",
-        temperature=0.2,
-        response_format={"type": "json_object"},
-        messages=[
-            {"role": "system", "content": REPORT_SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": json.dumps(
-                    {
-                        "candidate_name": candidate_name,
-                        "role_name": role_name,
-                        "template_title": template_title,
-                        "answers": answer_rows,
-                        "final_score": final_score,
-                        "percentage": percentage,
-                    }
-                ),
-            },
-        ],
-    )
-    payload_text = response.choices[0].message.content or "{}"
-    payload = json.loads(payload_text)
+    try:
+        factory = OpenAIClientFactory()
+        client = factory.create()
+        response = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0.2,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": REPORT_SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": json.dumps(
+                        {
+                            "candidate_name": candidate_name,
+                            "role_name": role_name,
+                            "template_title": template_title,
+                            "answers": answer_rows,
+                            "final_score": final_score,
+                            "percentage": percentage,
+                        }
+                    ),
+                },
+            ],
+        )
+        payload_text = response.choices[0].message.content or "{}"
+        payload = json.loads(payload_text)
+    except Exception:
+        logger.exception("OpenAI report generation request failed")
+        return {
+            "strengths": [],
+            "weaknesses": [],
+            "recommendation": "needs_review",
+            "final_summary": "Reporte generado con datos estructurados de la entrevista.",
+        }
+
     if "recommendation" not in payload:
         payload["recommendation"] = "needs_review"
     return payload
+
+
+def _normalize_recommendation(value: str) -> str:
+    allowed = {
+        "highly_recommended",
+        "recommended",
+        "needs_review",
+        "not_recommended",
+    }
+    return value if value in allowed else "needs_review"
 
 
 def serialize_answer(answer) -> dict:

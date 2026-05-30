@@ -27,6 +27,10 @@ export async function listTemplates(): Promise<InterviewTemplate[]> {
   return apiRequest<InterviewTemplate[]>("/templates");
 }
 
+export async function getTemplate(templateId: string): Promise<InterviewTemplate> {
+  return apiRequest<InterviewTemplate>(`/templates/${templateId}`);
+}
+
 export async function createTemplate(payload: TemplateCreatePayload): Promise<InterviewTemplate> {
   return apiRequest<InterviewTemplate>("/templates", {
     method: "POST",

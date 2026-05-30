@@ -8,11 +8,13 @@ from fastapi.staticfiles import StaticFiles
 from app.api.router import api_router
 from app.core.config import settings
 from app.db.session import close_db_engine, init_db
+from app.services.demo_seed_service import seed_demo_templates_if_enabled
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     await init_db()
+    await seed_demo_templates_if_enabled()
     yield
     await close_db_engine()
 

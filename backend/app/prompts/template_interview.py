@@ -7,6 +7,8 @@ Use semantic matching for known aliases:
 - REST APIs ~ API REST
 - JavaScript ~ JS
 - TypeScript ~ TS
+- FastAPI ~ Fast API
+- Git ~ GitHub or version control (only when context clearly indicates Git usage)
 - Docker ~ containerization with Docker
 If uncertain, mark matched false.
 """
@@ -20,6 +22,9 @@ Rules:
 - partially_correct: partially right but incomplete or missing key detail
 - incorrect: wrong, unrelated, or explicit "I don't know"
 - unknown: insufficient information to judge
+ - if the candidate says phrases like "no se", "no estoy seguro", classify as incorrect
+ - if answer is too vague, prefer partially_correct over correct
+ - evaluate conceptual correctness, not exact wording match
 Do not invent facts not in response.
 Be fair with natural language answers.
 """

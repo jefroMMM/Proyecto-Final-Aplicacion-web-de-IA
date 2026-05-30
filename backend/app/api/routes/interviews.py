@@ -8,6 +8,8 @@ from app.audio.assemblyai_service import AssemblyAIService, validate_audio_file
 from app.db.session import get_db_session
 from app.schemas.interview import InterviewCreate, InterviewDetailRead, InterviewRead
 from app.schemas.template import (
+    AnalyzeCVResponse,
+    AudioAnswerResponse,
     AnswerRequest,
     AnswerTurnResponse,
     InterviewCreateV2,
@@ -58,7 +60,7 @@ async def upload_cv_for_interview(
     return await template_interview_service.upload_cv(session, interview_id, file)
 
 
-@router.post("/{interview_id}/analyze-cv")
+@router.post("/{interview_id}/analyze-cv", response_model=AnalyzeCVResponse)
 async def analyze_cv_for_interview(
     interview_id: uuid.UUID,
     session: Annotated[AsyncSession, Depends(get_db_session)],
@@ -88,7 +90,7 @@ async def answer_template_interview(
     return AnswerTurnResponse(interview_id=interview_id, **result)
 
 
-@router.post("/{interview_id}/audio-answer", response_model=AnswerTurnResponse)
+@router.post("/{interview_id}/audio-answer", response_model=AudioAnswerResponse)
 async def answer_template_interview_with_audio(
     interview_id: uuid.UUID,
     file: Annotated[UploadFile, File(...)],
@@ -101,7 +103,24 @@ async def answer_template_interview_with_audio(
         interview_id,
         transcript,
     )
-    return AnswerTurnResponse(interview_id=interview_id, **result)
+    score = await template_interview_service.get_score(session, interview_id)
+    return AudioAnswerResponse(
+        candidate_transcript=result["candidate_transcript"],
+        evaluation=result["evaluation"],
+        current_score={
+            "initial_cv_score": score["initial_cv_score"],
+            "question_score": score["question_score"],
+            "bonus_score": score["bonus_score"],
+            "final_score": score["final_score"],
+            "max_score": score["max_score"],
+            "percentage": score["percentage"],
+        },
+        next_question={
+            "id": result.get("next_question_id"),
+            "question_text": result.get("next_question"),
+        },
+        interview_status=result["status"],
+    )
 
 
 @router.post("/{interview_id}/finalize", response_model=InterviewFinalReport)

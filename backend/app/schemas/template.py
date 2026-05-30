@@ -114,6 +114,22 @@ class CandidateSkillMatchRead(BaseModel):
     created_at: datetime
 
 
+class CVRequirementMatch(BaseModel):
+    skill_name: str = Field(min_length=1)
+    matched: bool
+    evidence_text: str = ""
+
+
+class CVMatchAnalysisResult(BaseModel):
+    matches: list[CVRequirementMatch] = Field(default_factory=list)
+
+
+class AnalyzeCVResponse(BaseModel):
+    interview_id: uuid.UUID
+    initial_cv_score: float
+    matches: list[CandidateSkillMatchRead]
+
+
 class InterviewAnswerRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -145,6 +161,8 @@ class InterviewScoreResponse(BaseModel):
     final_score: float
     max_score: float
     percentage: float
+    matched_skills: list[str] = Field(default_factory=list)
+    missing_skills: list[str] = Field(default_factory=list)
 
 
 class StartInterviewResponse(BaseModel):
@@ -177,9 +195,32 @@ class AnswerTurnResponse(BaseModel):
     candidate_transcript: str
     evaluation: AnswerEvaluation
     next_question: str | None = None
+    can_finalize: bool = False
     progress_percentage: float
     question_index: int
     total_questions: int
+
+
+class NextQuestionPayload(BaseModel):
+    id: uuid.UUID | None = None
+    question_text: str | None = None
+
+
+class CurrentScoreSnapshot(BaseModel):
+    initial_cv_score: float
+    question_score: float
+    bonus_score: float
+    final_score: float
+    max_score: float
+    percentage: float
+
+
+class AudioAnswerResponse(BaseModel):
+    candidate_transcript: str
+    evaluation: AnswerEvaluation
+    current_score: CurrentScoreSnapshot
+    next_question: NextQuestionPayload
+    interview_status: str
 
 
 class InterviewFinalReport(BaseModel):
