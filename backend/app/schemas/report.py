@@ -15,4 +15,7 @@ class ReportRead(BaseModel):
     communication_score: int = Field(ge=0, le=100)
     seniority_estimation: str
     recommendation: str
+    final_score: float = 0
+    max_score: float = 0
+    percentage: float = 0
     created_at: datetime

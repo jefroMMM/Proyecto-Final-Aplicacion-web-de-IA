@@ -37,7 +37,10 @@ class Document(Base):
         nullable=False,
     )
 
-    interview: Mapped["Interview"] = relationship(back_populates="documents")
+    interview: Mapped["Interview"] = relationship(
+        back_populates="documents",
+        foreign_keys=[interview_id],
+    )
     embeddings_metadata: Mapped[list["EmbeddingMetadata"]] = relationship(
         back_populates="document",
         cascade="all, delete-orphan",

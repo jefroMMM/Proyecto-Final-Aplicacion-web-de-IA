@@ -29,9 +29,16 @@ class InterviewRead(BaseModel):
 
     id: uuid.UUID
     user_id: uuid.UUID
+    template_id: uuid.UUID | None = None
     candidate_name: str
+    candidate_email: str | None = None
     job_title: str
     status: str
+    initial_cv_score: float = 0
+    question_score: float = 0
+    bonus_score: float = 0
+    final_score: float = 0
+    max_score: float = 0
     created_at: datetime
     updated_at: datetime
 

@@ -2,6 +2,8 @@ export type InterviewStatus = "created" | "pending" | "in_progress" | "completed
 export type DocumentType = "cv" | "job_description";
 export type TranscriptRole = "interviewer" | "candidate";
 export type DifficultyLevel = "junior" | "mid" | "senior";
+export type TemplateDifficulty = "easy" | "medium" | "hard";
+export type AnswerStatus = "correct" | "partially_correct" | "incorrect" | "unknown";
 
 export interface HealthResponse {
   status: string;
@@ -20,12 +22,25 @@ export interface InterviewCreate {
   job_title: string;
 }
 
+export interface InterviewCreateFromTemplate {
+  template_id: string;
+  candidate_name: string;
+  candidate_email?: string | null;
+}
+
 export interface Interview {
   id: string;
   user_id: string;
+  template_id?: string | null;
   candidate_name: string;
+  candidate_email?: string | null;
   job_title: string;
   status: InterviewStatus;
+  initial_cv_score: number;
+  question_score: number;
+  bonus_score: number;
+  final_score: number;
+  max_score: number;
   created_at: string;
   updated_at: string;
 }
@@ -80,6 +95,9 @@ export interface ReportRead {
   communication_score: number;
   seniority_estimation: DifficultyLevel;
   recommendation: string;
+  final_score: number;
+  max_score: number;
+  percentage: number;
   created_at: string;
 }
 
@@ -125,4 +143,111 @@ export interface InterviewTurnResponse {
   detected_skills: string[];
   latest_evaluation?: AnswerEvaluation | null;
   final_report?: InterviewReport | null;
+}
+
+export interface TemplateRequirement {
+  id: string;
+  template_id: string;
+  skill_name: string;
+  description: string;
+  weight: number;
+  created_at: string;
+}
+
+export interface TemplateQuestion {
+  id: string;
+  template_id: string;
+  requirement_id?: string | null;
+  question_text: string;
+  expected_answer: string;
+  difficulty: TemplateDifficulty;
+  points: number;
+  is_required: boolean;
+  order_index: number;
+  created_at: string;
+}
+
+export interface InterviewTemplate {
+  id: string;
+  title: string;
+  description: string;
+  role_name: string;
+  requirements: TemplateRequirement[];
+  questions: TemplateQuestion[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AnswerEvaluationV2 {
+  status: AnswerStatus;
+  base_score: number;
+  bonus_score: number;
+  final_score: number;
+  feedback: string;
+  reasoning_summary: string;
+  detected_knowledge: string[];
+  confidence: number;
+}
+
+export interface StartInterviewResponse {
+  interview_id: string;
+  status: "pending" | "in_progress" | "finalized";
+  current_question: string;
+  question_index: number;
+  total_questions: number;
+  progress_percentage: number;
+}
+
+export interface AnswerTurnResponse {
+  interview_id: string;
+  status: "pending" | "in_progress" | "finalized";
+  candidate_transcript: string;
+  evaluation: AnswerEvaluationV2;
+  next_question?: string | null;
+  progress_percentage: number;
+  question_index: number;
+  total_questions: number;
+}
+
+export interface InterviewScore {
+  interview_id: string;
+  status: string;
+  initial_cv_score: number;
+  question_score: number;
+  bonus_score: number;
+  final_score: number;
+  max_score: number;
+  percentage: number;
+}
+
+export interface CandidateReport {
+  candidate_name: string;
+  role_name: string;
+  template_title: string;
+  detected_cv_skills: string[];
+  missing_cv_skills: string[];
+  questions_answered: number;
+  answer_evaluations: Array<{
+    id: string;
+    interview_id: string;
+    question_id: string;
+    transcript_text: string;
+    evaluation_status: AnswerStatus;
+    base_question_score: number;
+    bonus_score: number;
+    final_question_score: number;
+    feedback: string;
+    reason: string;
+    created_at: string;
+  }>;
+  initial_cv_score: number;
+  question_score: number;
+  bonus_score: number;
+  final_score: number;
+  max_score: number;
+  percentage: number;
+  strengths: string[];
+  weaknesses: string[];
+  recommendation: "highly_recommended" | "recommended" | "needs_review" | "not_recommended";
+  final_summary: string;
 }

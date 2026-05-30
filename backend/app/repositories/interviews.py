@@ -2,9 +2,12 @@ import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
+from app.models.interview_answer import InterviewAnswer
 from app.models.interview import Interview
+from app.models.interview_template import InterviewTemplate
+from app.models.user import User
 
 
 async def create_interview(
@@ -13,10 +16,14 @@ async def create_interview(
     user_id: uuid.UUID,
     candidate_name: str,
     job_title: str,
+    template_id: uuid.UUID | None = None,
+    candidate_email: str | None = None,
 ) -> Interview:
     interview = Interview(
         user_id=user_id,
+        template_id=template_id,
         candidate_name=candidate_name,
+        candidate_email=candidate_email,
         job_title=job_title,
         status="created",
     )
@@ -48,9 +55,13 @@ async def get_interview_detail(
         .where(Interview.id == interview_id)
         .options(
             selectinload(Interview.user),
+            selectinload(Interview.template).selectinload(InterviewTemplate.requirements),
+            selectinload(Interview.template).selectinload(InterviewTemplate.questions),
             selectinload(Interview.documents),
             selectinload(Interview.transcripts),
             selectinload(Interview.report),
+            selectinload(Interview.answers).options(joinedload(InterviewAnswer.question)),
+            selectinload(Interview.candidate_skill_matches),
         )
     )
     return result.scalar_one_or_none()
@@ -65,3 +76,14 @@ async def update_interview_status(
     if interview:
         interview.status = status
         await session.flush()
+
+
+async def get_default_user_id(session: AsyncSession) -> uuid.UUID:
+    result = await session.execute(select(User).order_by(User.created_at.asc()))
+    user = result.scalars().first()
+    if user:
+        return user.id
+    default_user = User(name="System Recruiter", email="recruiter@local.demo")
+    session.add(default_user)
+    await session.flush()
+    return default_user.id

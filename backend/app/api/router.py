@@ -7,12 +7,14 @@ from app.api.routes import (
     interviews,
     rag,
     reports,
+    templates,
     transcripts,
     upload,
 )
 
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
+api_router.include_router(templates.router)
 api_router.include_router(interviews.router)
 api_router.include_router(upload.router)
 api_router.include_router(reports.router)

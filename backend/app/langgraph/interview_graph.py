@@ -367,7 +367,14 @@ class InterviewGraphRunner:
             await report_repository.upsert_report(
                 self._session,
                 interview_id=interview_id,
-                report=report,
+                report_json=report.model_dump(),
+                technical_score=report.technical_score,
+                communication_score=report.communication_score,
+                seniority_estimation=report.seniority_estimation,
+                recommendation=report.recommendation,
+                final_score=report.technical_score,
+                max_score=100,
+                percentage=report.technical_score,
             )
 
         await interview_repository.update_interview_status(

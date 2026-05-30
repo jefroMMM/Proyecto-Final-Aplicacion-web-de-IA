@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, LayoutDashboard, Mic2, PlusCircle, Sparkles } from "lucide-react";
+import { BarChart3, LayoutDashboard, Mic2, PlusCircle, Sparkles, Shapes } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/dashboard", label: "Panel", icon: LayoutDashboard },
+  { href: "/dashboard/templates", label: "Plantillas", icon: Shapes },
   { href: "/interviews/new", label: "Nueva entrevista", icon: PlusCircle },
   { href: "/dashboard#reports", label: "Reportes", icon: BarChart3 },
 ];

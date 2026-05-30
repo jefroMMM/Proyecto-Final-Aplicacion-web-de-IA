@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     )
 
     OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-4o-mini"
     ASSEMBLYAI_API_KEY: str = ""
     CARTESIA_API_KEY: str = ""
     CARTESIA_VOICE_ID: str = ""

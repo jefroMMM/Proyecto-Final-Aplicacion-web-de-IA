@@ -26,6 +26,27 @@ async def init_db() -> None:
         await connection.run_sync(Base.metadata.create_all)
         await connection.execute(
             text(
+                "ALTER TABLE IF EXISTS interviews "
+                "ADD COLUMN IF NOT EXISTS template_id uuid, "
+                "ADD COLUMN IF NOT EXISTS candidate_email varchar(320), "
+                "ADD COLUMN IF NOT EXISTS cv_document_id uuid, "
+                "ADD COLUMN IF NOT EXISTS initial_cv_score numeric(10,2) DEFAULT 0 NOT NULL, "
+                "ADD COLUMN IF NOT EXISTS question_score numeric(10,2) DEFAULT 0 NOT NULL, "
+                "ADD COLUMN IF NOT EXISTS bonus_score numeric(10,2) DEFAULT 0 NOT NULL, "
+                "ADD COLUMN IF NOT EXISTS final_score numeric(10,2) DEFAULT 0 NOT NULL, "
+                "ADD COLUMN IF NOT EXISTS max_score numeric(10,2) DEFAULT 0 NOT NULL"
+            )
+        )
+        await connection.execute(
+            text(
+                "ALTER TABLE IF EXISTS reports "
+                "ADD COLUMN IF NOT EXISTS final_score numeric(10,2) DEFAULT 0 NOT NULL, "
+                "ADD COLUMN IF NOT EXISTS max_score numeric(10,2) DEFAULT 0 NOT NULL, "
+                "ADD COLUMN IF NOT EXISTS percentage numeric(10,2) DEFAULT 0 NOT NULL"
+            )
+        )
+        await connection.execute(
+            text(
                 "ALTER TABLE IF EXISTS embeddings_metadata "
                 "ADD COLUMN IF NOT EXISTS embedding vector(1536)"
             )
