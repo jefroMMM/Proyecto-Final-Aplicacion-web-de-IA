@@ -5,6 +5,8 @@ export interface TemplateCreatePayload {
   title: string;
   description: string;
   role_name: string;
+  requirements?: RequirementCreatePayload[];
+  questions?: QuestionCreatePayload[];
 }
 
 export interface RequirementCreatePayload {
@@ -15,8 +17,11 @@ export interface RequirementCreatePayload {
 
 export interface QuestionCreatePayload {
   requirement_id?: string | null;
+  requirement_ids?: string[];
+  requirement_indexes?: number[];
   question_text: string;
   expected_answer: string;
+  question_type?: string;
   difficulty: "easy" | "medium" | "hard";
   points: number;
   is_required: boolean;

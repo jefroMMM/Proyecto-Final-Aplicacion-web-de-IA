@@ -49,12 +49,19 @@ async def _seed_templates(session: AsyncSession) -> None:
 
         for question in seed.questions:
             requirement_id = requirement_map.get(question.requirement_skill.lower())
+            related_requirements = []
+            if requirement_id:
+                requirement = await template_repository.get_requirement(session, requirement_id)
+                if requirement:
+                    related_requirements.append(requirement)
             await template_repository.create_question(
                 session,
                 template_id=template.id,
                 requirement_id=requirement_id,
+                related_requirements=related_requirements,
                 question_text=question.question_text,
                 expected_answer=question.expected_answer,
+                question_type="technical",
                 difficulty=question.difficulty,
                 points=question.points,
                 is_required=question.is_required,

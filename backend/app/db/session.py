@@ -70,7 +70,26 @@ async def init_db() -> None:
             text(
                 "ALTER TABLE IF EXISTS template_questions "
                 "ADD COLUMN IF NOT EXISTS source varchar(20) DEFAULT 'template' NOT NULL, "
-                "ADD COLUMN IF NOT EXISTS generated_for_interview_id uuid"
+                "ADD COLUMN IF NOT EXISTS generated_for_interview_id uuid, "
+                "ADD COLUMN IF NOT EXISTS question_type varchar(40) DEFAULT 'technical' NOT NULL"
+            )
+        )
+        await connection.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS template_question_requirements ("
+                "question_id uuid NOT NULL REFERENCES template_questions(id) ON DELETE CASCADE, "
+                "requirement_id uuid NOT NULL REFERENCES template_requirements(id) ON DELETE CASCADE, "
+                "PRIMARY KEY (question_id, requirement_id), "
+                "CONSTRAINT uq_template_question_requirement UNIQUE (question_id, requirement_id)"
+                ")"
+            )
+        )
+        await connection.execute(
+            text(
+                "INSERT INTO template_question_requirements (question_id, requirement_id) "
+                "SELECT id, requirement_id FROM template_questions "
+                "WHERE requirement_id IS NOT NULL "
+                "ON CONFLICT DO NOTHING"
             )
         )
         await connection.execute(

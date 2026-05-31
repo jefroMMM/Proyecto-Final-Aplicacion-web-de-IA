@@ -118,6 +118,7 @@ async def create_agent_question(
         requirement_id=requirement_id,
         question_text=question_text,
         expected_answer=expected_answer,
+        question_type="extra",
         source="agent",
         difficulty="medium",
         points=points,

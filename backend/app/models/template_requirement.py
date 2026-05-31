@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.models.template_question_requirement import template_question_requirements_table
 
 
 class TemplateRequirement(Base):
@@ -33,6 +34,10 @@ class TemplateRequirement(Base):
 
     template: Mapped["InterviewTemplate"] = relationship(back_populates="requirements")
     questions: Mapped[list["TemplateQuestion"]] = relationship(back_populates="requirement")
+    related_questions: Mapped[list["TemplateQuestion"]] = relationship(
+        secondary=template_question_requirements_table,
+        back_populates="related_requirements",
+    )
     skill_matches: Mapped[list["CandidateSkillMatch"]] = relationship(
         back_populates="requirement",
         cascade="all, delete-orphan",

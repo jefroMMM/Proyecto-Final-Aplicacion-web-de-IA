@@ -162,8 +162,11 @@ export interface TemplateQuestion {
   id: string;
   template_id: string;
   requirement_id?: string | null;
+  requirement_ids?: string[];
+  related_requirements?: TemplateRequirement[];
   question_text: string;
   expected_answer: string;
+  question_type?: string;
   difficulty: TemplateDifficulty;
   points: number;
   is_required: boolean;

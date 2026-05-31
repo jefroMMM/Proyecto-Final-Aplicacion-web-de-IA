@@ -21,6 +21,8 @@ export function QuestionEditor({
     question_text: string;
     expected_answer: string;
     requirement_id?: string | null;
+    requirement_ids?: string[];
+    question_type?: string;
     difficulty: TemplateDifficulty;
     points: number;
     is_required: boolean;
@@ -30,6 +32,8 @@ export function QuestionEditor({
     question_text: string;
     expected_answer: string;
     requirement_id?: string | null;
+    requirement_ids?: string[];
+    question_type?: string;
     difficulty: TemplateDifficulty;
     points: number;
     is_required: boolean;
@@ -40,7 +44,8 @@ export function QuestionEditor({
   const [form, setForm] = useState({
     question_text: "",
     expected_answer: "",
-    requirement_id: "",
+    requirement_ids: [] as string[],
+    question_type: "technical",
     difficulty: "medium" as TemplateDifficulty,
     points: "1",
     is_required: true,
@@ -53,7 +58,8 @@ export function QuestionEditor({
     await onCreate({
       question_text: form.question_text,
       expected_answer: form.expected_answer,
-      requirement_id: form.requirement_id || null,
+      requirement_ids: form.requirement_ids,
+      question_type: form.question_type,
       difficulty: form.difficulty,
       points: Number(form.points || 1),
       is_required: form.is_required,
@@ -62,7 +68,8 @@ export function QuestionEditor({
     setForm({
       question_text: "",
       expected_answer: "",
-      requirement_id: "",
+      requirement_ids: [],
+      question_type: "technical",
       difficulty: "medium",
       points: "1",
       is_required: true,
@@ -93,17 +100,27 @@ export function QuestionEditor({
             onChange={(event) => setForm((prev) => ({ ...prev, expected_answer: event.target.value }))}
           />
         </div>
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-[1.2fr_1fr_1fr]">
           <div className="grid gap-2 md:col-span-2">
-            <Label htmlFor="requirement_id">Requisito asociado</Label>
+            <Label>Requisitos relacionados</Label>
+            <RequirementCheckboxes
+              requirements={requirements}
+              selectedIds={form.requirement_ids}
+              onChange={(requirementIds) => setForm((prev) => ({ ...prev, requirement_ids: requirementIds }))}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="question_type">Tipo</Label>
             <select
-              id="requirement_id"
+              id="question_type"
               className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              value={form.requirement_id}
-              onChange={(event) => setForm((prev) => ({ ...prev, requirement_id: event.target.value }))}
+              value={form.question_type}
+              onChange={(event) => setForm((prev) => ({ ...prev, question_type: event.target.value }))}
             >
-              <option value="">Sin requisito</option>
-              {requirements.map((item) => <option key={item.id} value={item.id}>{item.skill_name}</option>)}
+              <option value="technical">Técnica</option>
+              <option value="experience">Experiencia</option>
+              <option value="situational">Situacional</option>
+              <option value="safety">Seguridad</option>
             </select>
           </div>
           <div className="grid gap-2">
@@ -182,6 +199,8 @@ function QuestionRow({
     question_text: string;
     expected_answer: string;
     requirement_id?: string | null;
+    requirement_ids?: string[];
+    question_type?: string;
     difficulty: TemplateDifficulty;
     points: number;
     is_required: boolean;
@@ -192,13 +211,14 @@ function QuestionRow({
   const [draft, setDraft] = useState({
     question_text: question.question_text,
     expected_answer: question.expected_answer,
-    requirement_id: question.requirement_id ?? "",
+    requirement_ids: question.requirement_ids ?? (question.requirement_id ? [question.requirement_id] : []),
+    question_type: question.question_type ?? "technical",
     difficulty: question.difficulty as TemplateDifficulty,
     points: String(question.points),
     is_required: question.is_required,
     order_index: String(question.order_index),
   });
-  const requirement = requirements.find((item) => item.id === question.requirement_id);
+  const relatedRequirements = requirements.filter((item) => (question.requirement_ids ?? []).includes(item.id));
 
   if (!isEditing) {
     return (
@@ -208,10 +228,11 @@ function QuestionRow({
             <div className="flex flex-wrap items-center gap-2">
               <p className="font-medium">{question.order_index + 1}. {question.question_text}</p>
               <Badge variant="secondary">{question.difficulty}</Badge>
+              <Badge variant="secondary">{question.question_type ?? "technical"}</Badge>
               <Badge variant="secondary">{question.points} pts</Badge>
-              {requirement ? <Badge>{requirement.skill_name}</Badge> : null}
             </div>
             <p className="mt-2 line-clamp-2 text-sm leading-5 text-muted-foreground">{question.expected_answer}</p>
+            <RelatedRequirements requirements={relatedRequirements} />
           </div>
           <div className="flex shrink-0 gap-1">
             <Button size="icon" variant="ghost" onClick={onStartEditing} aria-label="Editar pregunta"><Pencil className="h-4 w-4" /></Button>
@@ -226,15 +247,22 @@ function QuestionRow({
     <div className="space-y-3 rounded-md border border-primary/40 bg-primary/5 p-3">
       <Textarea value={draft.question_text} onChange={(event) => setDraft((prev) => ({ ...prev, question_text: event.target.value }))} />
       <Textarea value={draft.expected_answer} onChange={(event) => setDraft((prev) => ({ ...prev, expected_answer: event.target.value }))} />
-      <select
-        className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        value={draft.requirement_id}
-        onChange={(event) => setDraft((prev) => ({ ...prev, requirement_id: event.target.value }))}
-      >
-        <option value="">Sin requisito</option>
-        {requirements.map((item) => <option key={item.id} value={item.id}>{item.skill_name}</option>)}
-      </select>
+      <RequirementCheckboxes
+        requirements={requirements}
+        selectedIds={draft.requirement_ids}
+        onChange={(requirementIds) => setDraft((prev) => ({ ...prev, requirement_ids: requirementIds }))}
+      />
       <div className="grid grid-cols-2 gap-2">
+        <select
+          className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          value={draft.question_type}
+          onChange={(event) => setDraft((prev) => ({ ...prev, question_type: event.target.value }))}
+        >
+          <option value="technical">Técnica</option>
+          <option value="experience">Experiencia</option>
+          <option value="situational">Situacional</option>
+          <option value="safety">Seguridad</option>
+        </select>
         <select
           className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           value={draft.difficulty}
@@ -257,7 +285,8 @@ function QuestionRow({
         <Button size="sm" onClick={() => onSave({
           question_text: draft.question_text,
           expected_answer: draft.expected_answer,
-          requirement_id: draft.requirement_id || null,
+          requirement_ids: draft.requirement_ids,
+          question_type: draft.question_type,
           difficulty: draft.difficulty,
           points: Number(draft.points || 1),
           is_required: draft.is_required,
@@ -265,6 +294,61 @@ function QuestionRow({
         })}>Guardar</Button>
         <Button size="sm" variant="secondary" onClick={onCancelEditing}>Cancelar</Button>
       </div>
+    </div>
+  );
+}
+
+function RequirementCheckboxes({
+  requirements,
+  selectedIds,
+  onChange,
+}: {
+  requirements: TemplateRequirement[];
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  if (requirements.length === 0) {
+    return (
+      <div className="rounded-md border border-border bg-card p-3 text-sm text-muted-foreground">
+        Sin requisitos disponibles.
+      </div>
+    );
+  }
+  return (
+    <div className="grid gap-2 rounded-md border border-border bg-card p-3 sm:grid-cols-2">
+      {requirements.map((requirement) => (
+        <label key={requirement.id} className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={selectedIds.includes(requirement.id)}
+            onChange={(event) => {
+              onChange(
+                event.target.checked
+                  ? [...selectedIds, requirement.id]
+                  : selectedIds.filter((id) => id !== requirement.id),
+              );
+            }}
+          />
+          {requirement.skill_name}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function RelatedRequirements({ requirements }: { requirements: TemplateRequirement[] }) {
+  return (
+    <div className="mt-3">
+      <p className="text-xs font-semibold uppercase text-muted-foreground">Relacionada con</p>
+      {requirements.length === 0 ? (
+        <p className="mt-1 text-sm text-muted-foreground">Sin requisitos asociados.</p>
+      ) : (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {requirements.map((requirement) => (
+            <Badge key={requirement.id}>{requirement.skill_name}</Badge>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

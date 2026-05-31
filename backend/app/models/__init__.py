@@ -10,6 +10,7 @@ from app.models.interview_template import InterviewTemplate
 from app.models.interview_workflow_state import InterviewWorkflowState
 from app.models.report import Report
 from app.models.template_question import TemplateQuestion
+from app.models.template_question_requirement import TemplateQuestionRequirement
 from app.models.template_requirement import TemplateRequirement
 from app.models.transcript import Transcript
 from app.models.user import User
@@ -25,6 +26,7 @@ __all__ = [
     "InterviewWorkflowState",
     "Report",
     "TemplateQuestion",
+    "TemplateQuestionRequirement",
     "TemplateRequirement",
     "Transcript",
     "User",

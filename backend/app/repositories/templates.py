@@ -14,7 +14,7 @@ async def list_templates(session: AsyncSession) -> list[InterviewTemplate]:
         select(InterviewTemplate)
         .options(
             selectinload(InterviewTemplate.requirements),
-            selectinload(InterviewTemplate.questions),
+            selectinload(InterviewTemplate.questions).selectinload(TemplateQuestion.related_requirements),
             with_loader_criteria(TemplateQuestion, TemplateQuestion.generated_for_interview_id.is_(None)),
         )
         .order_by(InterviewTemplate.created_at.desc())
@@ -31,7 +31,7 @@ async def get_template(
         .where(InterviewTemplate.id == template_id)
         .options(
             selectinload(InterviewTemplate.requirements),
-            selectinload(InterviewTemplate.questions),
+            selectinload(InterviewTemplate.questions).selectinload(TemplateQuestion.related_requirements),
             with_loader_criteria(TemplateQuestion, TemplateQuestion.generated_for_interview_id.is_(None)),
         )
     )
@@ -99,8 +99,10 @@ async def create_question(
     *,
     template_id: uuid.UUID,
     requirement_id: uuid.UUID | None,
+    related_requirements: list[TemplateRequirement] | None = None,
     question_text: str,
     expected_answer: str,
+    question_type: str,
     difficulty: str,
     points: float,
     is_required: bool,
@@ -111,11 +113,13 @@ async def create_question(
         requirement_id=requirement_id,
         question_text=question_text,
         expected_answer=expected_answer,
+        question_type=question_type,
         difficulty=difficulty,
         points=points,
         is_required=is_required,
         order_index=order_index,
     )
+    question.related_requirements = related_requirements or []
     session.add(question)
     await session.flush()
     return question
@@ -125,7 +129,12 @@ async def get_question(
     session: AsyncSession,
     question_id: uuid.UUID,
 ) -> TemplateQuestion | None:
-    return await session.get(TemplateQuestion, question_id)
+    result = await session.execute(
+        select(TemplateQuestion)
+        .where(TemplateQuestion.id == question_id)
+        .options(selectinload(TemplateQuestion.related_requirements))
+    )
+    return result.scalar_one_or_none()
 
 
 async def delete_question(session: AsyncSession, question: TemplateQuestion) -> None:

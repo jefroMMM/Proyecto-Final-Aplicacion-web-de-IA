@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { addQuestion, addRequirement, createTemplate } from "@/lib/services/templates";
+import { createTemplate } from "@/lib/services/templates";
 import type { TemplateDifficulty } from "@/types/api";
 
 type DraftRequirement = {
@@ -29,7 +29,8 @@ type DraftQuestion = {
   id: string;
   question_text: string;
   expected_answer: string;
-  requirement_ref: string;
+  requirement_refs: string[];
+  question_type: string;
   difficulty: TemplateDifficulty;
   points: number;
   is_required: boolean;
@@ -53,7 +54,8 @@ export default function NewTemplatePage() {
   const [questionForm, setQuestionForm] = useState({
     question_text: "",
     expected_answer: "",
-    requirement_ref: "",
+    requirement_refs: [] as string[],
+    question_type: "technical",
     difficulty: "medium" as TemplateDifficulty,
     points: "1",
     is_required: true,
@@ -61,8 +63,8 @@ export default function NewTemplatePage() {
   });
 
   const canSubmit = useMemo(() => {
-    return form.title.trim() && form.role_name.trim() && form.description.trim();
-  }, [form.description, form.role_name, form.title]);
+    return form.title.trim() && form.role_name.trim() && form.description.trim() && questions.some((item) => item.is_required);
+  }, [form.description, form.role_name, form.title, questions]);
 
   function handleAddRequirement() {
     const skill = requirementForm.skill_name.trim();
@@ -90,7 +92,8 @@ export default function NewTemplatePage() {
         id: crypto.randomUUID(),
         question_text: questionText,
         expected_answer: expectedAnswer,
-        requirement_ref: questionForm.requirement_ref,
+        requirement_refs: questionForm.requirement_refs,
+        question_type: questionForm.question_type,
         difficulty: questionForm.difficulty,
         points: Number(questionForm.points || "1"),
         is_required: questionForm.is_required,
@@ -100,7 +103,8 @@ export default function NewTemplatePage() {
     setQuestionForm({
       question_text: "",
       expected_answer: "",
-      requirement_ref: "",
+      requirement_refs: [],
+      question_type: "technical",
       difficulty: "medium",
       points: "1",
       is_required: true,
@@ -109,33 +113,37 @@ export default function NewTemplatePage() {
   }
 
   async function handleSubmit() {
-    if (!canSubmit) return;
+    if (!canSubmit) {
+      showToast({
+        kind: "error",
+        title: "Plantilla incompleta",
+        description: "Agrega al menos una pregunta marcada como obligatoria.",
+      });
+      return;
+    }
 
     setSubmitting(true);
     try {
-      const template = await createTemplate(form);
-
-      const requirementIdByDraftId = new Map<string, string>();
-      for (const item of requirements) {
-        const created = await addRequirement(template.id, {
+      const template = await createTemplate({
+        ...form,
+        requirements: requirements.map((item) => ({
           skill_name: item.skill_name,
           description: item.description,
           weight: item.weight,
-        });
-        requirementIdByDraftId.set(item.id, created.id);
-      }
-
-      for (const item of questions) {
-        await addQuestion(template.id, {
+        })),
+        questions: questions.map((item) => ({
           question_text: item.question_text,
           expected_answer: item.expected_answer,
-          requirement_id: item.requirement_ref ? requirementIdByDraftId.get(item.requirement_ref) ?? null : null,
+          requirement_indexes: item.requirement_refs
+            .map((id) => requirements.findIndex((requirement) => requirement.id === id))
+            .filter((index) => index >= 0),
+          question_type: item.question_type,
           difficulty: item.difficulty,
           points: item.points,
           is_required: item.is_required,
           order_index: item.order_index,
-        });
-      }
+        })),
+      });
 
       showToast({
         kind: "success",
@@ -234,10 +242,12 @@ export default function NewTemplatePage() {
               <div className="admin-muted-panel grid gap-3 p-4">
                 <Textarea placeholder="Pregunta tecnica" value={questionForm.question_text} onChange={(event) => setQuestionForm((prev) => ({ ...prev, question_text: event.target.value }))} />
                 <Textarea placeholder="Respuesta esperada" value={questionForm.expected_answer} onChange={(event) => setQuestionForm((prev) => ({ ...prev, expected_answer: event.target.value }))} />
-                <div className="grid gap-3 md:grid-cols-4">
-                  <select className="h-10 rounded-md border border-input bg-card px-3 text-sm shadow-sm" value={questionForm.requirement_ref} onChange={(event) => setQuestionForm((prev) => ({ ...prev, requirement_ref: event.target.value }))}>
-                    <option value="">Sin requisito</option>
-                    {requirements.map((item) => <option key={item.id} value={item.id}>{item.skill_name}</option>)}
+                <div className="grid gap-3 md:grid-cols-[1fr_9rem_9rem_8rem]">
+                  <select className="h-10 rounded-md border border-input bg-card px-3 text-sm shadow-sm" value={questionForm.question_type} onChange={(event) => setQuestionForm((prev) => ({ ...prev, question_type: event.target.value }))}>
+                    <option value="technical">Técnica</option>
+                    <option value="experience">Experiencia</option>
+                    <option value="situational">Situacional</option>
+                    <option value="safety">Seguridad</option>
                   </select>
                   <select className="h-10 rounded-md border border-input bg-card px-3 text-sm shadow-sm" value={questionForm.difficulty} onChange={(event) => setQuestionForm((prev) => ({ ...prev, difficulty: event.target.value as TemplateDifficulty }))}>
                     <option value="easy">easy</option>
@@ -246,6 +256,27 @@ export default function NewTemplatePage() {
                   </select>
                   <Input type="number" min={0} step={0.5} value={questionForm.points} onChange={(event) => setQuestionForm((prev) => ({ ...prev, points: event.target.value }))} />
                   <Input type="number" min={0} value={questionForm.order_index} onChange={(event) => setQuestionForm((prev) => ({ ...prev, order_index: event.target.value }))} />
+                </div>
+                <div className="rounded-md border border-border bg-card p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Requisitos relacionados</p>
+                  {requirements.length === 0 ? <p className="text-sm text-muted-foreground">Agrega requisitos para asociarlos.</p> : null}
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {requirements.map((item) => (
+                      <label key={item.id} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={questionForm.requirement_refs.includes(item.id)}
+                          onChange={(event) => setQuestionForm((prev) => ({
+                            ...prev,
+                            requirement_refs: event.target.checked
+                              ? [...prev.requirement_refs, item.id]
+                              : prev.requirement_refs.filter((id) => id !== item.id),
+                          }))}
+                        />
+                        {item.skill_name}
+                      </label>
+                    ))}
+                  </div>
                 </div>
                 <label className="flex h-10 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm">
                   <input type="checkbox" checked={questionForm.is_required} onChange={(event) => setQuestionForm((prev) => ({ ...prev, is_required: event.target.checked }))} />
@@ -265,9 +296,11 @@ export default function NewTemplatePage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-medium">{index + 1}. {item.question_text}</p>
                           <Badge variant="secondary">{item.difficulty}</Badge>
+                          <Badge variant="secondary">{item.question_type}</Badge>
                           <Badge variant="secondary">{item.points} pts</Badge>
                         </div>
                         <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.expected_answer}</p>
+                        <RequirementNames requirementIds={item.requirement_refs} requirements={requirements} />
                       </div>
                       <Button type="button" size="icon" variant="ghost" onClick={() => setQuestions((prev) => prev.filter((value) => value.id !== item.id))}>
                         <Trash2 className="h-4 w-4" />
@@ -308,5 +341,25 @@ function DraftList({ children, empty }: { children: React.ReactNode; empty: stri
         <p className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">{empty}</p>
       ) : children}
     </div>
+  );
+}
+
+function RequirementNames({
+  requirementIds,
+  requirements,
+}: {
+  requirementIds: string[];
+  requirements: DraftRequirement[];
+}) {
+  const names = requirementIds
+    .map((id) => requirements.find((item) => item.id === id)?.skill_name)
+    .filter(Boolean);
+  if (names.length === 0) {
+    return <p className="mt-2 text-xs text-muted-foreground">Relacionada con: sin requisitos</p>;
+  }
+  return (
+    <p className="mt-2 text-xs text-muted-foreground">
+      Relacionada con: {names.join(", ")}
+    </p>
   );
 }

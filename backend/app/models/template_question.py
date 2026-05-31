@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.models.template_question_requirement import template_question_requirements_table
 
 
 class TemplateQuestion(Base):
@@ -42,6 +43,7 @@ class TemplateQuestion(Base):
     )
     question_text: Mapped[str] = mapped_column(Text, nullable=False)
     expected_answer: Mapped[str] = mapped_column(Text, nullable=False)
+    question_type: Mapped[str] = mapped_column(String(40), default="technical", nullable=False)
     source: Mapped[str] = mapped_column(String(20), default="template", nullable=False)
     difficulty: Mapped[str] = mapped_column(String(20), default="medium", nullable=False)
     points: Mapped[float] = mapped_column(Numeric(10, 2), default=1, nullable=False)
@@ -55,4 +57,12 @@ class TemplateQuestion(Base):
 
     template: Mapped["InterviewTemplate"] = relationship(back_populates="questions")
     requirement: Mapped["TemplateRequirement | None"] = relationship(back_populates="questions")
+    related_requirements: Mapped[list["TemplateRequirement"]] = relationship(
+        secondary=template_question_requirements_table,
+        back_populates="related_questions",
+    )
     answers: Mapped[list["InterviewAnswer"]] = relationship(back_populates="question")
+
+    @property
+    def requirement_ids(self) -> list[uuid.UUID]:
+        return [requirement.id for requirement in self.related_requirements]

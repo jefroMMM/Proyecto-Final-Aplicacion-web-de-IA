@@ -41,8 +41,11 @@ class TemplateRequirementRead(BaseModel):
 
 class TemplateQuestionCreate(BaseModel):
     requirement_id: uuid.UUID | None = None
+    requirement_ids: list[uuid.UUID] = Field(default_factory=list)
+    requirement_indexes: list[int] = Field(default_factory=list)
     question_text: str = Field(min_length=1, max_length=6000)
     expected_answer: str = Field(min_length=1, max_length=6000)
+    question_type: str = Field(default="technical", max_length=40)
     difficulty: DifficultyLevel = "medium"
     points: float = Field(default=1, ge=0, le=100)
     is_required: bool = True
@@ -51,8 +54,10 @@ class TemplateQuestionCreate(BaseModel):
 
 class TemplateQuestionUpdate(BaseModel):
     requirement_id: uuid.UUID | None = None
+    requirement_ids: list[uuid.UUID] | None = None
     question_text: str | None = Field(default=None, min_length=1, max_length=6000)
     expected_answer: str | None = Field(default=None, min_length=1, max_length=6000)
+    question_type: str | None = Field(default=None, max_length=40)
     difficulty: DifficultyLevel | None = None
     points: float | None = Field(default=None, ge=0, le=100)
     is_required: bool | None = None
@@ -66,8 +71,11 @@ class TemplateQuestionRead(BaseModel):
     template_id: uuid.UUID
     requirement_id: uuid.UUID | None
     generated_for_interview_id: uuid.UUID | None = None
+    requirement_ids: list[uuid.UUID] = Field(default_factory=list)
+    related_requirements: list[TemplateRequirementRead] = Field(default_factory=list)
     question_text: str
     expected_answer: str
+    question_type: str = "technical"
     source: str = "template"
     difficulty: DifficultyLevel
     points: float
