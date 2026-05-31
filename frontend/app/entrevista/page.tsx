@@ -203,6 +203,9 @@ function CandidateVoiceInterviewContent() {
             <p className="mt-4 max-w-lg text-sm leading-6 text-slate-600">
               Responde únicamente por voz. El agente leerá cada pregunta y escuchará tu respuesta por micrófono.
             </p>
+            <p className="mt-3 text-sm font-medium text-blue-700">
+              {validation.total_questions} preguntas
+            </p>
             <Button className="mt-8 h-12 px-7" onClick={startInterview}>
               Iniciar entrevista por voz
             </Button>
@@ -337,6 +340,13 @@ function ResultScreen({ result }: { result: CandidateFinalResultResponse }) {
           <Summary label="Porcentaje" value={`${result.percentage}%`} />
         </div>
 
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Summary label="Preguntas base" value={`${result.base_question_score} / ${result.max_base_question_score}`} />
+          <Summary label="CV" value={`${result.initial_cv_score} / ${result.max_cv_score}`} />
+          <Summary label="Bonus" value={`${result.bonus_score} / ${result.max_bonus_score}`} />
+          <Summary label="Preguntas extra" value={`${result.extra_question_score} / ${result.max_extra_question_score}`} />
+        </div>
+
         <Card className="border-blue-100 bg-white/90 shadow-sm">
           <CardHeader>
             <CardTitle>Recomendación</CardTitle>
@@ -367,6 +377,11 @@ function ResultScreen({ result }: { result: CandidateFinalResultResponse }) {
                 <p className="font-semibold text-blue-700">
                   Puntaje: {item.score} / {item.max_score}
                 </p>
+                {item.bonus_score > 0 ? (
+                  <p className="text-xs font-medium text-emerald-600">
+                    Incluye bonus: +{item.bonus_score}
+                  </p>
+                ) : null}
               </div>
             </article>
           ))}

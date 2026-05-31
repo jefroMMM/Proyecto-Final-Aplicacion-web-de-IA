@@ -36,8 +36,10 @@ from app.services.candidate_interview_service import issue_candidate_token, _ens
 from app.services.email_service import send_candidate_interview_email
 from app.services.openai_client import OpenAIClientFactory
 from app.services.scoring import (
+    AGENT_EXTRA_MAX_SCORE,
     BONUS_MAX_SCORE,
     CV_MAX_SCORE,
+    base_questions_max,
     bonus_question_value,
     calculate_max_score_for_template,
     clamp_score,
@@ -358,7 +360,12 @@ async def submit_text_answer(
 
 async def get_score(session: AsyncSession, interview_id: uuid.UUID):
     interview = await _require_interview_with_template(session, interview_id)
-    await _recalculate_interview_scores(session, interview)
+    answers = await _recalculate_interview_scores(session, interview)
+    score_parts = split_answer_scores(
+        answers,
+        max_base_score=base_questions_max(interview.template.questions),
+        max_extra_score=AGENT_EXTRA_MAX_SCORE,
+    )
     matches = await match_repository.list_skill_matches(session, interview_id)
     percentage = 0.0
     if float(interview.max_score) > 0:
@@ -369,6 +376,8 @@ async def get_score(session: AsyncSession, interview_id: uuid.UUID):
         "interview_id": interview.id,
         "status": "finalized" if interview.status == "completed" else interview.status,
         "initial_cv_score": float(interview.initial_cv_score),
+        "base_question_score": float(score_parts["base_question_score"]),
+        "extra_question_score": float(score_parts["extra_question_score"]),
         "question_score": float(interview.question_score),
         "bonus_score": float(interview.bonus_score),
         "final_score": float(interview.final_score),
@@ -383,7 +392,11 @@ async def finalize_interview(session: AsyncSession, interview_id: uuid.UUID):
     interview = await _require_interview_with_template(session, interview_id)
     answers = await _recalculate_interview_scores(session, interview)
     skill_matches = await match_repository.list_skill_matches(session, interview_id)
-    score_parts = split_answer_scores(answers)
+    score_parts = split_answer_scores(
+        answers,
+        max_base_score=base_questions_max(interview.template.questions),
+        max_extra_score=AGENT_EXTRA_MAX_SCORE,
+    )
     percentage = (
         round((float(interview.final_score) / float(interview.max_score)) * 100, 2)
         if float(interview.max_score) > 0
@@ -512,14 +525,18 @@ def calculate_template_max_score(template) -> float:
 
 def _refresh_interview_totals(interview) -> None:
     interview.max_score = _to_decimal(calculate_template_max_score(interview.template))
-    interview.final_score = _to_decimal(interview.initial_cv_score) + _to_decimal(
+    interview.final_score = clamp_score(_to_decimal(interview.initial_cv_score), CV_MAX_SCORE) + _to_decimal(
         interview.question_score
     ) + _to_decimal(interview.bonus_score)
 
 
 async def _recalculate_interview_scores(session: AsyncSession, interview):
     answers = await answer_repository.list_answers(session, interview.id)
-    score_parts = split_answer_scores(answers)
+    score_parts = split_answer_scores(
+        answers,
+        max_base_score=base_questions_max(interview.template.questions),
+        max_extra_score=AGENT_EXTRA_MAX_SCORE,
+    )
     interview.question_score = score_parts["question_score"]
     interview.bonus_score = score_parts["bonus_score"]
     _refresh_interview_totals(interview)
@@ -528,7 +545,11 @@ async def _recalculate_interview_scores(session: AsyncSession, interview):
 
 def _refresh_report_scores_from_interview(interview, answers, skill_matches=None) -> None:
     skill_matches = list(skill_matches or [])
-    score_parts = split_answer_scores(answers)
+    score_parts = split_answer_scores(
+        answers,
+        max_base_score=base_questions_max(interview.template.questions),
+        max_extra_score=AGENT_EXTRA_MAX_SCORE,
+    )
     detected = [item.skill_name for item in skill_matches if item.matched]
     missing = [item.skill_name for item in skill_matches if not item.matched]
     percentage = (

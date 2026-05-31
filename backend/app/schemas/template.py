@@ -247,6 +247,8 @@ class InterviewFinalReport(BaseModel):
     questions_answered: int
     answer_evaluations: list[InterviewAnswerRead]
     initial_cv_score: float
+    base_question_score: float = 0
+    extra_question_score: float = 0
     question_score: float
     bonus_score: float
     final_score: float

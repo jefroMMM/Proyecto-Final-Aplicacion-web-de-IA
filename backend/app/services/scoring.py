@@ -90,7 +90,12 @@ def calculate_max_score_for_template(template) -> Decimal:
     )
 
 
-def split_answer_scores(answers: Iterable) -> dict[str, Decimal]:
+def split_answer_scores(
+    answers: Iterable,
+    *,
+    max_base_score: Decimal | None = None,
+    max_extra_score: Decimal | None = AGENT_EXTRA_MAX_SCORE,
+) -> dict[str, Decimal]:
     base_total = Decimal("0")
     extra_total = Decimal("0")
     bonus_total = Decimal("0")
@@ -105,6 +110,10 @@ def split_answer_scores(answers: Iterable) -> dict[str, Decimal]:
         else:
             base_total += question_score
         bonus_total += to_decimal(getattr(answer, "bonus_score", 0))
+    if max_base_score is not None:
+        base_total = clamp_score(base_total, max_base_score)
+    if max_extra_score is not None:
+        extra_total = clamp_score(extra_total, max_extra_score)
     return {
         "base_question_score": round_score(base_total),
         "extra_question_score": round_score(extra_total),

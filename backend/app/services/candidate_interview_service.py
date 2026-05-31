@@ -19,11 +19,16 @@ from app.repositories import transcripts as transcript_repository
 from app.services.scoring import (
     AGENT_EXTRA_MAX_QUESTIONS,
     AGENT_EXTRA_MIN_QUESTIONS,
+    AGENT_EXTRA_MAX_SCORE,
     BONUS_MAX_SCORE,
+    CV_MAX_SCORE,
     agent_question_value,
+    base_questions_max,
+    bonus_max_score,
     bonus_question_value,
     calculate_max_score_for_template,
     clamp_score,
+    cv_max_score,
     is_agent_question,
     split_answer_scores,
 )
@@ -230,6 +235,11 @@ async def finalize_candidate_interview(
         )
 
     await _recalculate_candidate_interview_scores(session, interview)
+    score_parts = split_answer_scores(
+        answers,
+        max_base_score=base_questions_max(questions),
+        max_extra_score=AGENT_EXTRA_MAX_SCORE,
+    )
     max_score = float(interview.max_score)
     total_score = float(interview.final_score)
     percentage = round((total_score / max_score) * 100, 2) if max_score else 0
@@ -241,6 +251,14 @@ async def finalize_candidate_interview(
         interview_id=interview.id,
         candidate_name=interview.candidate_name,
         status="completed",
+        initial_cv_score=float(interview.initial_cv_score),
+        max_cv_score=float(cv_max_score(len(interview.template.requirements or []))),
+        base_question_score=float(score_parts["base_question_score"]),
+        max_base_question_score=float(base_questions_max(questions)),
+        bonus_score=float(interview.bonus_score),
+        max_bonus_score=float(bonus_max_score(len([question for question in questions if not is_agent_question(question)]))),
+        extra_question_score=float(score_parts["extra_question_score"]),
+        max_extra_question_score=float(AGENT_EXTRA_MAX_SCORE),
         total_score=round(total_score, 2),
         max_score=round(max_score, 2),
         percentage=percentage,
@@ -250,8 +268,10 @@ async def finalize_candidate_interview(
                 expected_answer=question.expected_answer,
                 source=question.source,
                 candidate_answer=answer_by_question[question.id].transcript_text,
+                base_score=float(answer_by_question[question.id].base_question_score),
+                bonus_score=float(answer_by_question[question.id].bonus_score),
                 score=float(answer_by_question[question.id].final_question_score),
-                max_score=float(question.points),
+                max_score=float(_question_max_score(question, questions)),
                 feedback=answer_by_question[question.id].feedback,
             )
             for question in questions
@@ -319,9 +339,18 @@ async def evaluate_candidate_answer_with_template_ai(
         Decimal("0"),
     )
     potential_bonus = bonus_question_value(base_question_count)
+    earns_bonus = (
+        not is_agent_question(question)
+        and evaluation.status in {"correct", "partially_correct"}
+        and (
+            evaluation.status == "correct"
+            or evaluation.confidence >= 0.75
+            or _decimal(evaluation.base_score) >= (_decimal(question.points) * Decimal("0.75"))
+        )
+    )
     evaluation.bonus_score = float(
         clamp_score(
-            potential_bonus if evaluation.status == "correct" and not is_agent_question(question) else Decimal("0"),
+            potential_bonus if earns_bonus else Decimal("0"),
             BONUS_MAX_SCORE - current_bonus_total,
         )
     )
@@ -528,16 +557,28 @@ def _agent_requirement_targets(interview, missing_matches: list, target_count: i
 
 async def _recalculate_candidate_interview_scores(session: AsyncSession, interview) -> list:
     answers = await answer_repository.list_answers(session, interview.id)
-    score_parts = split_answer_scores(answers)
+    questions = _questions_for_interview(interview.template.questions, interview.id)
+    score_parts = split_answer_scores(
+        answers,
+        max_base_score=base_questions_max(questions),
+        max_extra_score=AGENT_EXTRA_MAX_SCORE,
+    )
     interview.question_score = score_parts["question_score"]
     interview.bonus_score = score_parts["bonus_score"]
     interview.max_score = calculate_max_score_for_template(interview.template)
     interview.final_score = (
-        _decimal(interview.initial_cv_score)
+        clamp_score(_decimal(interview.initial_cv_score), CV_MAX_SCORE)
         + _decimal(interview.question_score)
         + _decimal(interview.bonus_score)
     )
     return answers
+
+
+def _question_max_score(question: TemplateQuestion, questions: list[TemplateQuestion]) -> Decimal:
+    if is_agent_question(question):
+        return _decimal(question.points)
+    base_question_count = len([item for item in questions if not is_agent_question(item)])
+    return _decimal(question.points) + bonus_question_value(base_question_count)
 
 
 def _question_read(question: TemplateQuestion) -> CandidateQuestionRead:

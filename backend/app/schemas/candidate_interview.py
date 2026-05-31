@@ -59,6 +59,8 @@ class CandidateFinalResultQuestion(BaseModel):
     expected_answer: str
     source: str = "template"
     candidate_answer: str
+    base_score: float = 0
+    bonus_score: float = 0
     score: float
     max_score: float
     feedback: str
@@ -68,6 +70,14 @@ class CandidateFinalResultResponse(BaseModel):
     interview_id: uuid.UUID
     candidate_name: str
     status: str
+    initial_cv_score: float = 0
+    max_cv_score: float = 0
+    base_question_score: float = 0
+    max_base_question_score: float = 0
+    bonus_score: float = 0
+    max_bonus_score: float = 0
+    extra_question_score: float = 0
+    max_extra_question_score: float = 0
     total_score: float
     max_score: float
     percentage: float

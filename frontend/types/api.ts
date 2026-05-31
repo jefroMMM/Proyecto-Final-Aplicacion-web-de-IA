@@ -235,6 +235,8 @@ export interface InterviewScore {
   interview_id: string;
   status: string;
   initial_cv_score: number;
+  base_question_score?: number;
+  extra_question_score?: number;
   question_score: number;
   bonus_score: number;
   final_score: number;
@@ -353,6 +355,14 @@ export interface CandidateFinalResultResponse {
   interview_id: string;
   candidate_name: string;
   status: string;
+  initial_cv_score: number;
+  max_cv_score: number;
+  base_question_score: number;
+  max_base_question_score: number;
+  bonus_score: number;
+  max_bonus_score: number;
+  extra_question_score: number;
+  max_extra_question_score: number;
   total_score: number;
   max_score: number;
   percentage: number;
@@ -361,6 +371,8 @@ export interface CandidateFinalResultResponse {
     expected_answer: string;
     source?: string;
     candidate_answer: string;
+    base_score: number;
+    bonus_score: number;
     score: number;
     max_score: number;
     feedback: string;
