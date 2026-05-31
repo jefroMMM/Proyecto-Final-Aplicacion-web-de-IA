@@ -4,7 +4,7 @@
 2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
 3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj
 4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
-5 0 obj << /Length 375 >> stream
+5 0 obj << /Length 414 >> stream
 BT
 /F1 11 Tf
 72 790 Td
@@ -13,10 +13,12 @@ BT
 T* () Tj
 T* (Sofia Ramirez) Tj
 T* (DevOps Junior) Tj
-T* (Experiencia con Linux para administracion de servicios y logs.) Tj
-T* (Docker y docker compose para entornos locales.) Tj
-T* (Pipelines CI/CD en GitHub Actions.) Tj
-T* (Conocimientos cloud en AWS \(EC2, S3\) y monitoreo con Prometheus/Grafana.) Tj
+T* (Resumen de skills alineadas al puesto:) Tj
+T* (Linux: comandos, procesos y permisos.) Tj
+T* (Docker: imagenes, contenedores y redes.) Tj
+T* (CI/CD: pipelines de build, test y deploy.) Tj
+T* (Cloud: servicios basicos de AWS, Azure y GCP.) Tj
+T* (Monitoring: observabilidad y alertas.) Tj
 ET
 endstream endobj
 xref
@@ -30,5 +32,5 @@ xref
 trailer
 << /Size 6 /Root 1 0 R >>
 startxref
-743
+782
 %%EOF

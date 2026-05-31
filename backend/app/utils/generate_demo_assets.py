@@ -47,7 +47,7 @@ SEEDS: list[TemplateSeed] = [
             RequirementSeed("PostgreSQL", "Modelado basico, queries, joins e indices."),
             RequirementSeed("Docker", "Contenerizacion y despliegue local."),
             RequirementSeed("Git", "Flujo colaborativo con ramas y PRs."),
-            RequirementSeed("REST APIs", "Diseño de endpoints y metodos HTTP."),
+            RequirementSeed("REST APIs", "Diseno de endpoints y metodos HTTP."),
         ],
         questions=[
             QuestionSeed("Explica que es Python y como lo usaste en backend.", "Debe mencionar APIs o servicios backend.", "Python", "easy", 1, True, 0),
@@ -58,10 +58,13 @@ SEEDS: list[TemplateSeed] = [
         ],
         cv_match_text="""Juan Perez
 Backend Developer Junior
-Experiencia: desarrollo de APIs REST con Python y FastAPI.
-Base de datos PostgreSQL: modelos, consultas SQL, joins e indices basicos.
-Docker: construccion de imagenes y ejecucion con docker compose.
-Git y GitHub para flujo colaborativo con pull requests.
+Resumen de skills alineadas al puesto:
+Python: desarrollo backend y buenas practicas.
+FastAPI: creacion de APIs y validacion con Pydantic.
+PostgreSQL: modelado basico, queries, joins e indices.
+Docker: contenerizacion y despliegue local.
+Git: flujo colaborativo con ramas y PRs.
+REST APIs: diseno de endpoints y metodos HTTP.
 """,
         cv_non_match_text="""Carlos Lopez
 Soporte Tecnico
@@ -87,19 +90,22 @@ No ha trabajado con APIs backend ni bases de datos relacionales.
             QuestionSeed("Como manejas estado global en React?", "Context, Zustand, Redux segun caso.", "React", "medium", 1.5, True, 1),
             QuestionSeed("Cuando usar SSR o SSG en Next.js?", "Decidir por SEO, performance y frescura de datos.", "Next.js", "hard", 2, True, 2),
             QuestionSeed("Como aseguras UI responsive con Tailwind?", "Breakpoints y layout adaptativo.", "CSS/Tailwind", "easy", 1, True, 3),
-            QuestionSeed("Que pruebas harías para un formulario critico?", "Unitarias, integracion y edge cases.", "Testing", "medium", 1, True, 4),
+            QuestionSeed("Que pruebas harias para un formulario critico?", "Unitarias, integracion y edge cases.", "Testing", "medium", 1, True, 4),
         ],
         cv_match_text="""Maria Rodriguez
 Frontend React Developer
-Experiencia en JavaScript y TypeScript para aplicaciones web.
-React con hooks y componentes reutilizables.
-Next.js para SSR y rutas dinamicas.
-TailwindCSS para diseño responsive y testing con Vitest/RTL.
+Resumen de skills alineadas al puesto:
+JavaScript: fundamentos del lenguaje y asincronia.
+TypeScript: tipos, interfaces y seguridad de tipos.
+React: componentes, hooks y estado.
+Next.js: ruteo, renderizado y estructura de proyecto.
+CSS/Tailwind: estilos responsivos y buenas practicas.
+Testing: pruebas unitarias y de interfaz.
 """,
         cv_non_match_text="""Luis Herrera
-Diseñador Grafico
+Disenador Grafico
 Experiencia principal en Adobe Illustrator y Photoshop.
-Diseño de piezas visuales para redes sociales.
+Diseno de piezas visuales para redes sociales.
 No tiene experiencia desarrollando aplicaciones con React ni TypeScript.
 """,
     ),
@@ -115,18 +121,19 @@ No tiene experiencia desarrollando aplicaciones con React ni TypeScript.
             RequirementSeed("Estadistica", "Medidas descriptivas e inferencia basica."),
         ],
         questions=[
-            QuestionSeed("Como limpiarías un dataset con valores nulos?", "Estrategia de imputacion o descarte justificado.", "Python", "medium", 1.5, True, 0),
+            QuestionSeed("Como limpiarias un dataset con valores nulos?", "Estrategia de imputacion o descarte justificado.", "Python", "medium", 1.5, True, 0),
             QuestionSeed("Cuando usar INNER JOIN vs LEFT JOIN?", "Definir comportamiento por necesidad de filas.", "SQL", "medium", 1.5, True, 1),
             QuestionSeed("Que KPIs pondrias en un dashboard comercial?", "Ventas, conversion, ticket promedio.", "Power BI", "easy", 1, True, 2),
-            QuestionSeed("Como validarías conclusiones estadisticas basicas?", "Revisar distribucion, sesgo y tamaño muestral.", "Estadistica", "medium", 1, True, 3),
+            QuestionSeed("Como validarias conclusiones estadisticas basicas?", "Revisar distribucion, sesgo y tamano muestral.", "Estadistica", "medium", 1, True, 3),
         ],
         cv_match_text="""Ana Morales
 Data Analyst Junior
-SQL para consultas con joins y agregaciones.
-Python (Pandas) para limpieza y transformacion de datos.
-Power BI para dashboards de ventas y desempeño.
-Excel avanzado con tablas dinamicas y formulas.
-Bases de estadistica descriptiva.
+Resumen de skills alineadas al puesto:
+SQL: consultas, joins, agregaciones y limpieza.
+Python: pandas para transformacion de datos.
+Power BI: dashboards y KPIs.
+Excel: formulas, tablas dinamicas y analisis.
+Estadistica: medidas descriptivas e inferencia basica.
 """,
         cv_non_match_text="""Pedro Castillo
 Asistente Administrativo
@@ -148,16 +155,18 @@ No experiencia en SQL, Python ni dashboards de BI.
         ],
         questions=[
             QuestionSeed("Que comandos Linux usas para diagnosticar un servicio caido?", "ps, journalctl, netstat/ss, logs.", "Linux", "medium", 1.5, True, 0),
-            QuestionSeed("Como optimizarías un Dockerfile?", "Capas, imagen base ligera, cache.", "Docker", "medium", 1.5, True, 1),
+            QuestionSeed("Como optimizarias un Dockerfile?", "Capas, imagen base ligera, cache.", "Docker", "medium", 1.5, True, 1),
             QuestionSeed("Que etapas incluirias en un pipeline CI/CD?", "build, test, quality gates, deploy.", "CI/CD", "medium", 1.5, True, 2),
-            QuestionSeed("Que monitorearías en producción?", "latencia, errores, CPU, memoria y alertas.", "Monitoring", "easy", 1, True, 3),
+            QuestionSeed("Que monitorearias en produccion?", "latencia, errores, CPU, memoria y alertas.", "Monitoring", "easy", 1, True, 3),
         ],
         cv_match_text="""Sofia Ramirez
 DevOps Junior
-Experiencia con Linux para administracion de servicios y logs.
-Docker y docker compose para entornos locales.
-Pipelines CI/CD en GitHub Actions.
-Conocimientos cloud en AWS (EC2, S3) y monitoreo con Prometheus/Grafana.
+Resumen de skills alineadas al puesto:
+Linux: comandos, procesos y permisos.
+Docker: imagenes, contenedores y redes.
+CI/CD: pipelines de build, test y deploy.
+Cloud: servicios basicos de AWS, Azure y GCP.
+Monitoring: observabilidad y alertas.
 """,
         cv_non_match_text="""Miguel Ortega
 Tester Manual

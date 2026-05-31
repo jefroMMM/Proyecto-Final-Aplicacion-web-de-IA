@@ -93,6 +93,8 @@ async def validate_candidate_token(
 ) -> CandidateTokenValidationResponse:
     token_row = await _require_active_token(session, token)
     interview = await _require_interview_detail(session, token_row.interview_id)
+    if interview.status == "created":
+        interview.status = "in_progress"
     await _ensure_agent_questions(session, interview=interview)
     questions = _questions_for_interview(interview.template.questions if interview.template else [], interview.id)
     await session.commit()
@@ -473,9 +475,11 @@ async def _ensure_agent_questions(
         point_value = agent_question_value(len(agent_questions))
         for question in agent_questions:
             question.points = point_value
-            question.question_text = question.question_text.replace(
-                "Pregunta generada por el agente:",
-                "Pregunta Extra:",
+            question.question_text = (
+                question.question_text
+                .replace("Pregunta generada por el agente:", "")
+                .replace("Pregunta Extra:", "")
+                .strip()
             )
         interview.max_score = calculate_max_score_for_template(interview.template)
         return agent_questions
@@ -494,7 +498,7 @@ async def _ensure_agent_questions(
         target_requirement = requirement_targets[index] if index < len(requirement_targets) else None
         skill_name = target_requirement.skill_name if target_requirement else role_name
         question_text = (
-            f"Pregunta Extra: describe una situacion practica donde aplicaste {skill_name} "
+            f"Describe una situacion practica donde aplicaste {skill_name} "
             f"en un puesto de {role_name} y explica el resultado."
         )
         expected_answer = (
@@ -516,9 +520,11 @@ async def _ensure_agent_questions(
     all_agent_questions = [*agent_questions, *created_questions]
     for question in all_agent_questions:
         question.points = point_value
-        question.question_text = question.question_text.replace(
-            "Pregunta generada por el agente:",
-            "Pregunta Extra:",
+        question.question_text = (
+            question.question_text
+            .replace("Pregunta generada por el agente:", "")
+            .replace("Pregunta Extra:", "")
+            .strip()
         )
     interview.max_score = calculate_max_score_for_template(interview.template)
     return all_agent_questions

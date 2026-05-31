@@ -32,7 +32,7 @@
         },
         {
           "skill_name": "REST APIs",
-          "description": "Dise\u00f1o de endpoints y metodos HTTP.",
+          "description": "Diseno de endpoints y metodos HTTP.",
           "weight": 1.0
         }
       ],
@@ -158,7 +158,7 @@
           "requirement_ref": "__REQ__4"
         },
         {
-          "question_text": "Que pruebas har\u00edas para un formulario critico?",
+          "question_text": "Que pruebas harias para un formulario critico?",
           "expected_answer": "Unitarias, integracion y edge cases.",
           "difficulty": "medium",
           "points": 1,
@@ -201,7 +201,7 @@
       ],
       "questions": [
         {
-          "question_text": "Como limpiar\u00edas un dataset con valores nulos?",
+          "question_text": "Como limpiarias un dataset con valores nulos?",
           "expected_answer": "Estrategia de imputacion o descarte justificado.",
           "difficulty": "medium",
           "points": 1.5,
@@ -228,8 +228,8 @@
           "requirement_ref": "__REQ__2"
         },
         {
-          "question_text": "Como validar\u00edas conclusiones estadisticas basicas?",
-          "expected_answer": "Revisar distribucion, sesgo y tama\u00f1o muestral.",
+          "question_text": "Como validarias conclusiones estadisticas basicas?",
+          "expected_answer": "Revisar distribucion, sesgo y tamano muestral.",
           "difficulty": "medium",
           "points": 1,
           "is_required": true,
@@ -280,7 +280,7 @@
           "requirement_ref": "__REQ__0"
         },
         {
-          "question_text": "Como optimizar\u00edas un Dockerfile?",
+          "question_text": "Como optimizarias un Dockerfile?",
           "expected_answer": "Capas, imagen base ligera, cache.",
           "difficulty": "medium",
           "points": 1.5,
@@ -298,7 +298,7 @@
           "requirement_ref": "__REQ__2"
         },
         {
-          "question_text": "Que monitorear\u00edas en producci\u00f3n?",
+          "question_text": "Que monitorearias en produccion?",
           "expected_answer": "latencia, errores, CPU, memoria y alertas.",
           "difficulty": "easy",
           "points": 1,

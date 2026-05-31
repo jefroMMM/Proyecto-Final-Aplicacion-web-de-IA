@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { FileText, ListChecks, Loader2, Plus, Save, Trash2 } from "lucide-react";
+import { Check, FileText, ListChecks, Loader2, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { PageHeader } from "@/components/admin/page-header";
@@ -30,7 +30,6 @@ type DraftQuestion = {
   question_text: string;
   expected_answer: string;
   requirement_refs: string[];
-  question_type: string;
   difficulty: TemplateDifficulty;
   points: number;
   is_required: boolean;
@@ -45,6 +44,8 @@ export default function NewTemplatePage() {
   const [requirements, setRequirements] = useState<DraftRequirement[]>([]);
   const [questions, setQuestions] = useState<DraftQuestion[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [editingRequirementId, setEditingRequirementId] = useState<string | null>(null);
+  const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
 
   const [requirementForm, setRequirementForm] = useState({
     skill_name: "",
@@ -55,7 +56,6 @@ export default function NewTemplatePage() {
     question_text: "",
     expected_answer: "",
     requirement_refs: [] as string[],
-    question_type: "technical",
     difficulty: "medium" as TemplateDifficulty,
     points: "1",
     is_required: true,
@@ -93,7 +93,6 @@ export default function NewTemplatePage() {
         question_text: questionText,
         expected_answer: expectedAnswer,
         requirement_refs: questionForm.requirement_refs,
-        question_type: questionForm.question_type,
         difficulty: questionForm.difficulty,
         points: Number(questionForm.points || "1"),
         is_required: questionForm.is_required,
@@ -104,7 +103,6 @@ export default function NewTemplatePage() {
       question_text: "",
       expected_answer: "",
       requirement_refs: [],
-      question_type: "technical",
       difficulty: "medium",
       points: "1",
       is_required: true,
@@ -137,7 +135,6 @@ export default function NewTemplatePage() {
           requirement_indexes: item.requirement_refs
             .map((id) => requirements.findIndex((requirement) => requirement.id === id))
             .filter((index) => index >= 0),
-          question_type: item.question_type,
           difficulty: item.difficulty,
           points: item.points,
           is_required: item.is_required,
@@ -220,16 +217,32 @@ export default function NewTemplatePage() {
               <DraftList empty="Aun no agregas requisitos.">
                 {requirements.map((item) => (
                   <div key={item.id} className="rounded-md border border-border bg-card p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-medium">{item.skill_name}</p>
-                        <p className="text-xs text-muted-foreground">Peso {item.weight}</p>
-                        {item.description ? <p className="mt-1 text-sm leading-5 text-muted-foreground">{item.description}</p> : null}
+                    {editingRequirementId === item.id ? (
+                      <DraftRequirementEditor
+                        requirement={item}
+                        onSave={(updated) => {
+                          setRequirements((prev) => prev.map((value) => (value.id === item.id ? updated : value)));
+                          setEditingRequirementId(null);
+                        }}
+                        onCancel={() => setEditingRequirementId(null)}
+                      />
+                    ) : (
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-medium">{item.skill_name}</p>
+                          <p className="text-xs text-muted-foreground">Peso {item.weight}</p>
+                          {item.description ? <p className="mt-1 text-sm leading-5 text-muted-foreground">{item.description}</p> : null}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button type="button" size="icon" variant="ghost" onClick={() => setEditingRequirementId(item.id)} aria-label={`Editar requisito ${item.skill_name}`}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button type="button" size="icon" variant="ghost" onClick={() => setRequirements((prev) => prev.filter((value) => value.id !== item.id))} aria-label={`Eliminar requisito ${item.skill_name}`}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                      <Button type="button" size="icon" variant="ghost" onClick={() => setRequirements((prev) => prev.filter((value) => value.id !== item.id))}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    )}
                   </div>
                 ))}
               </DraftList>
@@ -242,13 +255,7 @@ export default function NewTemplatePage() {
               <div className="admin-muted-panel grid gap-3 p-4">
                 <Textarea placeholder="Pregunta tecnica" value={questionForm.question_text} onChange={(event) => setQuestionForm((prev) => ({ ...prev, question_text: event.target.value }))} />
                 <Textarea placeholder="Respuesta esperada" value={questionForm.expected_answer} onChange={(event) => setQuestionForm((prev) => ({ ...prev, expected_answer: event.target.value }))} />
-                <div className="grid gap-3 md:grid-cols-[1fr_9rem_9rem_8rem]">
-                  <select className="h-10 rounded-md border border-input bg-card px-3 text-sm shadow-sm" value={questionForm.question_type} onChange={(event) => setQuestionForm((prev) => ({ ...prev, question_type: event.target.value }))}>
-                    <option value="technical">Técnica</option>
-                    <option value="experience">Experiencia</option>
-                    <option value="situational">Situacional</option>
-                    <option value="safety">Seguridad</option>
-                  </select>
+                <div className="grid gap-3 md:grid-cols-[1fr_9rem_8rem]">
                   <select className="h-10 rounded-md border border-input bg-card px-3 text-sm shadow-sm" value={questionForm.difficulty} onChange={(event) => setQuestionForm((prev) => ({ ...prev, difficulty: event.target.value as TemplateDifficulty }))}>
                     <option value="easy">easy</option>
                     <option value="medium">medium</option>
@@ -257,27 +264,11 @@ export default function NewTemplatePage() {
                   <Input type="number" min={0} step={0.5} value={questionForm.points} onChange={(event) => setQuestionForm((prev) => ({ ...prev, points: event.target.value }))} />
                   <Input type="number" min={0} value={questionForm.order_index} onChange={(event) => setQuestionForm((prev) => ({ ...prev, order_index: event.target.value }))} />
                 </div>
-                <div className="rounded-md border border-border bg-card p-3">
-                  <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Requisitos relacionados</p>
-                  {requirements.length === 0 ? <p className="text-sm text-muted-foreground">Agrega requisitos para asociarlos.</p> : null}
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {requirements.map((item) => (
-                      <label key={item.id} className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={questionForm.requirement_refs.includes(item.id)}
-                          onChange={(event) => setQuestionForm((prev) => ({
-                            ...prev,
-                            requirement_refs: event.target.checked
-                              ? [...prev.requirement_refs, item.id]
-                              : prev.requirement_refs.filter((id) => id !== item.id),
-                          }))}
-                        />
-                        {item.skill_name}
-                      </label>
-                    ))}
-                  </div>
-                </div>
+                <RequirementPicker
+                  requirements={requirements}
+                  selectedIds={questionForm.requirement_refs}
+                  onChange={(nextIds) => setQuestionForm((prev) => ({ ...prev, requirement_refs: nextIds }))}
+                />
                 <label className="flex h-10 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm">
                   <input type="checkbox" checked={questionForm.is_required} onChange={(event) => setQuestionForm((prev) => ({ ...prev, is_required: event.target.checked }))} />
                   Obligatoria
@@ -291,21 +282,37 @@ export default function NewTemplatePage() {
               <DraftList empty="Aun no agregas preguntas.">
                 {questions.map((item, index) => (
                   <div key={item.id} className="rounded-md border border-border bg-card p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="font-medium">{index + 1}. {item.question_text}</p>
-                          <Badge variant="secondary">{item.difficulty}</Badge>
-                          <Badge variant="secondary">{item.question_type}</Badge>
-                          <Badge variant="secondary">{item.points} pts</Badge>
+                    {editingQuestionId === item.id ? (
+                      <DraftQuestionEditor
+                        question={item}
+                        requirements={requirements}
+                        onSave={(updated) => {
+                          setQuestions((prev) => prev.map((value) => (value.id === item.id ? updated : value)));
+                          setEditingQuestionId(null);
+                        }}
+                        onCancel={() => setEditingQuestionId(null)}
+                      />
+                    ) : (
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-medium">{index + 1}. {item.question_text}</p>
+                            <Badge variant="secondary">{item.difficulty}</Badge>
+                            <Badge variant="secondary">{item.points} pts</Badge>
+                          </div>
+                          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.expected_answer}</p>
+                          <RequirementNames requirementIds={item.requirement_refs} requirements={requirements} />
                         </div>
-                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.expected_answer}</p>
-                        <RequirementNames requirementIds={item.requirement_refs} requirements={requirements} />
+                        <div className="flex items-center gap-1">
+                          <Button type="button" size="icon" variant="ghost" onClick={() => setEditingQuestionId(item.id)} aria-label={`Editar pregunta ${index + 1}`}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button type="button" size="icon" variant="ghost" onClick={() => setQuestions((prev) => prev.filter((value) => value.id !== item.id))} aria-label={`Eliminar pregunta ${index + 1}`}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                      <Button type="button" size="icon" variant="ghost" onClick={() => setQuestions((prev) => prev.filter((value) => value.id !== item.id))}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    )}
                   </div>
                 ))}
               </DraftList>
@@ -355,11 +362,171 @@ function RequirementNames({
     .map((id) => requirements.find((item) => item.id === id)?.skill_name)
     .filter(Boolean);
   if (names.length === 0) {
-    return <p className="mt-2 text-xs text-muted-foreground">Relacionada con: sin requisitos</p>;
+    return <p className="mt-2 text-xs text-muted-foreground">Requisitos: sin asociaciones</p>;
   }
   return (
-    <p className="mt-2 text-xs text-muted-foreground">
-      Relacionada con: {names.join(", ")}
-    </p>
+    <div className="mt-2 flex flex-wrap gap-1.5">
+      {names.map((name) => (
+        <Badge key={name}>{name}</Badge>
+      ))}
+    </div>
+  );
+}
+
+function RequirementPicker({
+  requirements,
+  selectedIds,
+  onChange,
+}: {
+  requirements: DraftRequirement[];
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [selectedId, setSelectedId] = useState("");
+  const selected = selectedIds
+    .map((id) => requirements.find((item) => item.id === id))
+    .filter((item): item is DraftRequirement => Boolean(item));
+  const available = requirements.filter((item) => !selectedIds.includes(item.id));
+
+  return (
+    <div className="rounded-md border border-border bg-card p-3">
+      <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Requisitos relacionados</p>
+      {requirements.length === 0 ? <p className="text-sm text-muted-foreground">Agrega requisitos para asociarlos.</p> : null}
+      {requirements.length > 0 ? (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              className="h-9 min-w-[13rem] rounded-md border border-input bg-card px-3 text-sm shadow-sm"
+              value={selectedId}
+              onChange={(event) => setSelectedId(event.target.value)}
+            >
+              <option value="">Seleccionar requisito</option>
+              {available.map((item) => (
+                <option key={item.id} value={item.id}>{item.skill_name}</option>
+              ))}
+            </select>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={!selectedId}
+              onClick={() => {
+                if (!selectedId) return;
+                onChange([...selectedIds, selectedId]);
+                setSelectedId("");
+              }}
+            >
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              Vincular
+            </Button>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {selected.map((item) => (
+              <Badge key={item.id} className="flex items-center gap-1">
+                {item.skill_name}
+                <button type="button" onClick={() => onChange(selectedIds.filter((id) => id !== item.id))} aria-label={`Quitar ${item.skill_name}`}>
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function DraftRequirementEditor({
+  requirement,
+  onSave,
+  onCancel,
+}: {
+  requirement: DraftRequirement;
+  onSave: (requirement: DraftRequirement) => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState({
+    skill_name: requirement.skill_name,
+    description: requirement.description,
+    weight: String(requirement.weight),
+  });
+
+  return (
+    <div className="space-y-2">
+      <Input value={draft.skill_name} onChange={(event) => setDraft((prev) => ({ ...prev, skill_name: event.target.value }))} />
+      <Textarea value={draft.description} onChange={(event) => setDraft((prev) => ({ ...prev, description: event.target.value }))} />
+      <Input type="number" min={0} step={0.1} value={draft.weight} onChange={(event) => setDraft((prev) => ({ ...prev, weight: event.target.value }))} />
+      <div className="flex gap-2">
+        <Button size="sm" onClick={() => onSave({ ...requirement, ...draft, weight: Number(draft.weight || "1") })}>
+          <Check className="mr-1 h-3.5 w-3.5" />
+          Guardar
+        </Button>
+        <Button size="sm" variant="secondary" onClick={onCancel}>Cancelar</Button>
+      </div>
+    </div>
+  );
+}
+
+function DraftQuestionEditor({
+  question,
+  requirements,
+  onSave,
+  onCancel,
+}: {
+  question: DraftQuestion;
+  requirements: DraftRequirement[];
+  onSave: (question: DraftQuestion) => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState({
+    question_text: question.question_text,
+    expected_answer: question.expected_answer,
+    requirement_refs: question.requirement_refs,
+    difficulty: question.difficulty,
+    points: String(question.points),
+    is_required: question.is_required,
+    order_index: String(question.order_index),
+  });
+
+  return (
+    <div className="space-y-3">
+      <Textarea value={draft.question_text} onChange={(event) => setDraft((prev) => ({ ...prev, question_text: event.target.value }))} />
+      <Textarea value={draft.expected_answer} onChange={(event) => setDraft((prev) => ({ ...prev, expected_answer: event.target.value }))} />
+      <RequirementPicker requirements={requirements} selectedIds={draft.requirement_refs} onChange={(ids) => setDraft((prev) => ({ ...prev, requirement_refs: ids }))} />
+      <div className="grid gap-3 md:grid-cols-[1fr_9rem_8rem]">
+        <select className="h-10 rounded-md border border-input bg-card px-3 text-sm shadow-sm" value={draft.difficulty} onChange={(event) => setDraft((prev) => ({ ...prev, difficulty: event.target.value as TemplateDifficulty }))}>
+          <option value="easy">easy</option>
+          <option value="medium">medium</option>
+          <option value="hard">hard</option>
+        </select>
+        <Input type="number" min={0} step={0.5} value={draft.points} onChange={(event) => setDraft((prev) => ({ ...prev, points: event.target.value }))} />
+        <Input type="number" min={0} value={draft.order_index} onChange={(event) => setDraft((prev) => ({ ...prev, order_index: event.target.value }))} />
+      </div>
+      <label className="flex h-10 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm">
+        <input type="checkbox" checked={draft.is_required} onChange={(event) => setDraft((prev) => ({ ...prev, is_required: event.target.checked }))} />
+        Obligatoria
+      </label>
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          onClick={() =>
+            onSave({
+              ...question,
+              question_text: draft.question_text.trim(),
+              expected_answer: draft.expected_answer.trim(),
+              requirement_refs: draft.requirement_refs,
+              difficulty: draft.difficulty,
+              points: Number(draft.points || "1"),
+              is_required: draft.is_required,
+              order_index: Number(draft.order_index || "0"),
+            })
+          }
+        >
+          <Check className="mr-1 h-3.5 w-3.5" />
+          Guardar
+        </Button>
+        <Button size="sm" variant="secondary" onClick={onCancel}>Cancelar</Button>
+      </div>
+    </div>
   );
 }

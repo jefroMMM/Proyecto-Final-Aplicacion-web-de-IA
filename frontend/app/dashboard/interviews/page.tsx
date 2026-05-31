@@ -5,6 +5,7 @@ import { CheckCircle2, ClipboardList, Radio } from "lucide-react";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SearchBox } from "@/components/admin/search-box";
+import type { SearchSuggestion } from "@/components/admin/search-box";
 import { StatCard } from "@/components/admin/stat-card";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -45,16 +46,42 @@ export default function DashboardInterviewsPage() {
   });
 
   useEffect(() => {
-    listInterviews()
-      .then(setItems)
-      .catch((error) => setLoadError(error instanceof Error ? error.message : "No se pudieron cargar entrevistas"))
-      .finally(() => setLoading(false));
+    let active = true;
+    const load = async () => {
+      try {
+        const interviews = await listInterviews();
+        if (!active) return;
+        setItems(interviews);
+        setLoadError(null);
+      } catch (error) {
+        if (!active) return;
+        setLoadError(error instanceof Error ? error.message : "No se pudieron cargar entrevistas");
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void load();
+
+    const onFocus = () => {
+      void load();
+    };
+    window.addEventListener("focus", onFocus);
+    const interval = window.setInterval(() => {
+      void load();
+    }, 15000);
+
+    return () => {
+      active = false;
+      window.removeEventListener("focus", onFocus);
+      window.clearInterval(interval);
+    };
   }, []);
 
   const filtered = useMemo(
     () =>
       items.filter((item) => {
-        const matchesFilter = appliedFilters.filter === "all" || item.status === appliedFilters.filter;
+        const matchesFilter = filter === "all" || item.status === filter;
         const query = `${item.candidate_name} ${item.candidate_email ?? ""} ${item.job_title}`.toLowerCase();
         const minScore = parseOptionalNumber(appliedFilters.scoreMin);
         const maxScore = parseOptionalNumber(appliedFilters.scoreMax);
@@ -63,14 +90,14 @@ export default function DashboardInterviewsPage() {
         const itemTime = new Date(item.created_at).getTime();
         return (
           matchesFilter
-          && query.includes(appliedFilters.search.toLowerCase())
+          && query.includes(search.toLowerCase())
           && (fromTime === null || itemTime >= fromTime)
           && (toTime === null || itemTime <= toTime)
           && (minScore === null || item.final_score >= minScore)
           && (maxScore === null || item.final_score <= maxScore)
         );
       }),
-    [items, appliedFilters],
+    [items, filter, appliedFilters.dateFrom, appliedFilters.dateTo, appliedFilters.scoreMin, appliedFilters.scoreMax, search],
   );
 
   const stats = useMemo(() => {
@@ -83,6 +110,24 @@ export default function DashboardInterviewsPage() {
   }, [items]);
 
   const hasFilters = Boolean(search || filter !== "all" || dateFrom || dateTo || scoreMin || scoreMax);
+
+  const searchSuggestions = useMemo<SearchSuggestion[]>(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return [];
+
+    return items
+      .filter((item) => {
+        const haystack = `${item.candidate_name} ${item.candidate_email ?? ""} ${item.job_title}`.toLowerCase();
+        return haystack.includes(query);
+      })
+      .slice(0, 10)
+      .map((item) => ({
+        id: item.id,
+        label: item.candidate_name,
+        value: item.candidate_name,
+        detail: `${item.candidate_email ?? "sin correo"} · ${item.job_title} · ${formatInterviewDate(item.created_at)}`,
+      }));
+  }, [items, search]);
 
   function applyFilters() {
     setAppliedFilters({ search, filter, dateFrom, dateTo, scoreMin, scoreMax });
@@ -121,13 +166,21 @@ export default function DashboardInterviewsPage() {
                 key={item}
                 size="sm"
                 variant={item === filter ? "default" : "secondary"}
-                onClick={() => setFilter(item)}
+                onClick={() => {
+                  setFilter(item);
+                  setAppliedFilters((prev) => ({ ...prev, filter: item }));
+                }}
               >
                 {filterLabels[item]}
               </Button>
             ))}
           </div>
-          <SearchBox placeholder="Buscar candidato, correo o puesto" value={search} onChange={setSearch} />
+          <SearchBox
+            placeholder="Buscar candidato, correo o puesto"
+            value={search}
+            onChange={setSearch}
+            suggestions={searchSuggestions}
+          />
         </div>
         <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_0.8fr_0.8fr_auto_auto] xl:items-end">
           <label className="grid gap-1 text-sm font-medium">
@@ -184,4 +237,14 @@ function startOfLocalDay(value: string) {
 
 function endOfLocalDay(value: string) {
   return new Date(`${value}T23:59:59.999`);
+}
+
+function formatInterviewDate(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "sin fecha";
+  return parsed.toLocaleDateString("es-GT", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
 }

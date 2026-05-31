@@ -4,7 +4,7 @@
 2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
 3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj
 4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
-5 0 obj << /Length 407 >> stream
+5 0 obj << /Length 443 >> stream
 BT
 /F1 11 Tf
 72 790 Td
@@ -13,11 +13,12 @@ BT
 T* () Tj
 T* (Ana Morales) Tj
 T* (Data Analyst Junior) Tj
-T* (SQL para consultas con joins y agregaciones.) Tj
-T* (Python \(Pandas\) para limpieza y transformacion de datos.) Tj
-T* (Power BI para dashboards de ventas y desempeño.) Tj
-T* (Excel avanzado con tablas dinamicas y formulas.) Tj
-T* (Bases de estadistica descriptiva.) Tj
+T* (Resumen de skills alineadas al puesto:) Tj
+T* (SQL: consultas, joins, agregaciones y limpieza.) Tj
+T* (Python: pandas para transformacion de datos.) Tj
+T* (Power BI: dashboards y KPIs.) Tj
+T* (Excel: formulas, tablas dinamicas y analisis.) Tj
+T* (Estadistica: medidas descriptivas e inferencia basica.) Tj
 ET
 endstream endobj
 xref
@@ -31,5 +32,5 @@ xref
 trailer
 << /Size 6 /Root 1 0 R >>
 startxref
-775
+811
 %%EOF

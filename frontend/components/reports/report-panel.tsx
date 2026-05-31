@@ -178,7 +178,6 @@ function ScoreSummary({ report }: { report: CandidateReport }) {
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <p className="font-medium">
                       Pregunta {index + 1}: {item.question_text || "Sin texto registrado"}
-                      {item.question_source === "agent" ? <span className="ml-2 text-xs text-primary">Pregunta Extra</span> : null}
                     </p>
                     <Badge variant={item.evaluation_status === "correct" ? "success" : item.evaluation_status === "incorrect" ? "danger" : "warning"}>
                       {item.final_question_score} pts
@@ -250,7 +249,6 @@ function AnswerEvaluationRow({
       <tr className="border-b border-border bg-card align-top">
         <td className="px-4 py-4">
           <p className="text-xs font-semibold uppercase text-muted-foreground">Pregunta {index + 1}</p>
-          {item.question_source === "agent" ? <Badge className="mb-2 mt-1" variant="default">Pregunta Extra</Badge> : null}
           <p className="mt-1 leading-6 text-foreground">{item.question_text || "Pregunta no registrada"}</p>
         </td>
         <td className="px-4 py-4 leading-6 text-muted-foreground">{item.transcript_text}</td>

@@ -6,6 +6,7 @@ import { BarChart3, CheckCircle2, FileText } from "lucide-react";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SearchBox } from "@/components/admin/search-box";
+import type { SearchSuggestion } from "@/components/admin/search-box";
 import { InterviewStatusBadge } from "@/components/admin/status-badge";
 import { StatCard } from "@/components/admin/stat-card";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -50,7 +51,7 @@ export default function DashboardReportsPage() {
     [reportable],
   );
   const filtered = useMemo(() => {
-    const term = appliedFilters.search.toLowerCase();
+    const term = search.toLowerCase();
     const minScore = parseOptionalNumber(appliedFilters.scoreMin);
     const maxScore = parseOptionalNumber(appliedFilters.scoreMax);
     const fromTime = appliedFilters.dateFrom ? startOfLocalDay(appliedFilters.dateFrom).getTime() : null;
@@ -66,7 +67,24 @@ export default function DashboardReportsPage() {
       const matchesMaxScore = maxScore === null || item.final_score <= maxScore;
       return matchesSearch && matchesRole && matchesFrom && matchesTo && matchesMinScore && matchesMaxScore;
     });
-  }, [appliedFilters, reportable]);
+  }, [appliedFilters.dateFrom, appliedFilters.roleFilter, appliedFilters.scoreMax, appliedFilters.scoreMin, appliedFilters.dateTo, reportable, search]);
+
+  const searchSuggestions = useMemo<SearchSuggestion[]>(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return [];
+    return reportable
+      .filter((item) => {
+        const haystack = `${item.candidate_name} ${item.candidate_email ?? ""} ${item.job_title}`.toLowerCase();
+        return haystack.includes(query);
+      })
+      .slice(0, 10)
+      .map((item) => ({
+        id: item.id,
+        label: item.candidate_name,
+        value: item.candidate_name,
+        detail: `${item.candidate_email ?? "sin correo"} · ${item.job_title} · ${formatDateShort(item.created_at)}`,
+      }));
+  }, [reportable, search]);
 
   const hasFilters = Boolean(search || roleFilter || dateFrom || dateTo || scoreMin || scoreMax);
 
@@ -102,7 +120,12 @@ export default function DashboardReportsPage() {
         <div className="mb-4 grid gap-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <p className="text-sm text-muted-foreground">{filtered.length} resultados</p>
-            <SearchBox placeholder="Buscar candidato, correo o puesto" value={search} onChange={setSearch} />
+            <SearchBox
+              placeholder="Buscar candidato, correo o puesto"
+              value={search}
+              onChange={setSearch}
+              suggestions={searchSuggestions}
+            />
           </div>
 
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[1.2fr_1fr_1fr_0.8fr_0.8fr_auto_auto] xl:items-end">
@@ -200,4 +223,14 @@ function startOfLocalDay(value: string) {
 
 function endOfLocalDay(value: string) {
   return new Date(`${value}T23:59:59.999`);
+}
+
+function formatDateShort(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "sin fecha";
+  return parsed.toLocaleDateString("es-GT", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
 }
