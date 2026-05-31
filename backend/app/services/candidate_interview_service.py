@@ -16,6 +16,17 @@ from app.repositories import candidate_skill_matches as match_repository
 from app.repositories import documents as document_repository
 from app.repositories import interviews as interview_repository
 from app.repositories import transcripts as transcript_repository
+from app.services.scoring import (
+    AGENT_EXTRA_MAX_QUESTIONS,
+    AGENT_EXTRA_MIN_QUESTIONS,
+    BONUS_MAX_SCORE,
+    agent_question_value,
+    bonus_question_value,
+    calculate_max_score_for_template,
+    clamp_score,
+    is_agent_question,
+    split_answer_scores,
+)
 from app.schemas.candidate_interview import (
     CandidateFinalResultQuestion,
     CandidateFinalResultResponse,
@@ -26,7 +37,6 @@ from app.schemas.candidate_interview import (
 )
 
 TOKEN_TTL_HOURS = 72
-AGENT_QUESTION_LIMIT = 1
 STOPWORDS = {
     "para",
     "como",
@@ -78,7 +88,9 @@ async def validate_candidate_token(
 ) -> CandidateTokenValidationResponse:
     token_row = await _require_active_token(session, token)
     interview = await _require_interview_detail(session, token_row.interview_id)
-    questions = _sorted_questions(interview.template.questions if interview.template else [])
+    await _ensure_agent_questions(session, interview=interview)
+    questions = _questions_for_interview(interview.template.questions if interview.template else [], interview.id)
+    await session.commit()
     return CandidateTokenValidationResponse(
         interview_id=interview.id,
         candidate_name=interview.candidate_name,
@@ -101,12 +113,13 @@ async def list_candidate_questions(
 ) -> CandidateQuestionsResponse:
     await _require_active_token_for_interview(session, token, interview_id)
     interview = await _require_interview_detail(session, interview_id)
+    await _ensure_agent_questions(session, interview=interview)
     if interview.status == "created":
         interview.status = "in_progress"
-        await session.commit()
+    await session.commit()
     return CandidateQuestionsResponse(
         interview_id=interview.id,
-        questions=[_question_read(question) for question in _sorted_questions(interview.template.questions)],
+        questions=[_question_read(question) for question in _questions_for_interview(interview.template.questions, interview.id)],
     )
 
 
@@ -124,6 +137,7 @@ async def submit_voice_answer(
     if interview.status == "completed":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Interview already completed")
 
+    await _ensure_agent_questions(session, interview=interview)
     answered_ids = {answer.question_id for answer in await answer_repository.list_answers(session, interview_id)}
     question = await answer_repository.get_next_question(
         session,
@@ -131,8 +145,6 @@ async def submit_voice_answer(
         already_answered_question_ids=answered_ids,
         interview_id=interview.id,
     )
-    if not question:
-        question = await _ensure_agent_question(session, interview=interview, answered_question_ids=answered_ids)
     if not question:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No pending questions")
 
@@ -162,9 +174,7 @@ async def submit_voice_answer(
         reason=evaluation.reasoning_summary,
     )
 
-    interview.question_score = _decimal(interview.question_score) + _decimal(evaluation.base_score)
-    interview.bonus_score = _decimal(interview.bonus_score) + _decimal(evaluation.bonus_score)
-    interview.final_score = _decimal(interview.initial_cv_score) + _decimal(interview.question_score) + _decimal(interview.bonus_score)
+    await _recalculate_candidate_interview_scores(session, interview)
     interview.status = "in_progress"
 
     updated_answers = await answer_repository.list_answers(session, interview_id)
@@ -174,12 +184,6 @@ async def submit_voice_answer(
         already_answered_question_ids={answer.question_id for answer in updated_answers},
         interview_id=interview.id,
     )
-    if not next_question:
-        next_question = await _ensure_agent_question(
-            session,
-            interview=interview,
-            answered_question_ids={answer.question_id for answer in updated_answers},
-        )
     if next_question:
         await transcript_repository.create_transcript(
             session,
@@ -225,20 +229,11 @@ async def finalize_candidate_interview(
             detail="Interview still has pending questions",
         )
 
-    max_score = float(interview.max_score) if float(interview.max_score) > 0 else (
-        sum(float(question.points) for question in questions)
-        + (len(interview.template.requirements) * 0.5 if interview.template else 0)
-    )
-    question_total = sum(float(answer.base_question_score) for answer in answers)
-    total_score = (
-        float(_decimal(interview.initial_cv_score))
-        + question_total
-        + float(_decimal(interview.bonus_score))
-    )
+    await _recalculate_candidate_interview_scores(session, interview)
+    max_score = float(interview.max_score)
+    total_score = float(interview.final_score)
     percentage = round((total_score / max_score) * 100, 2) if max_score else 0
     interview.status = "completed"
-    interview.question_score = _decimal(sum(float(answer.base_question_score) for answer in answers))
-    interview.final_score = _decimal(total_score)
     await token_repository.mark_token_used(session, token_row)
     await session.commit()
 
@@ -315,12 +310,21 @@ async def evaluate_candidate_answer_with_template_ai(
     else:
         evaluation.base_score = 0
 
-    evaluation.bonus_score = 0.5 if (
-        evaluation.status == "correct"
-        and question.requirement_id
-        and cv_match
-        and not cv_match.matched
-    ) else 0
+    base_question_count = len([item for item in interview.template.questions if not is_agent_question(item)])
+    current_bonus_total = sum(
+        (
+            _decimal(answer.bonus_score)
+            for answer in await answer_repository.list_answers(session, interview.id)
+        ),
+        Decimal("0"),
+    )
+    potential_bonus = bonus_question_value(base_question_count)
+    evaluation.bonus_score = float(
+        clamp_score(
+            potential_bonus if evaluation.status == "correct" and not is_agent_question(question) else Decimal("0"),
+            BONUS_MAX_SCORE - current_bonus_total,
+        )
+    )
     evaluation.final_score = evaluation.base_score + evaluation.bonus_score
     return evaluation
 
@@ -426,59 +430,114 @@ def _questions_for_interview(questions: list[TemplateQuestion], interview_id: uu
     )
 
 
-async def _ensure_agent_question(
+async def _ensure_agent_questions(
     session: AsyncSession,
     *,
     interview,
-    answered_question_ids: set[uuid.UUID],
-) -> TemplateQuestion | None:
+) -> list[TemplateQuestion]:
     questions = _questions_for_interview(interview.template.questions, interview.id)
-    pending = [question for question in questions if question.id not in answered_question_ids]
-    if pending:
-        return pending[0]
-
+    if not [question for question in questions if question.source != "agent"]:
+        interview.max_score = calculate_max_score_for_template(interview.template)
+        return []
     agent_questions = [question for question in questions if question.source == "agent"]
-    if len(agent_questions) >= AGENT_QUESTION_LIMIT:
-        return None
-
-    template_questions = [question for question in questions if question.source != "agent"]
-    if len(answered_question_ids) < len(template_questions):
-        return None
+    if len(agent_questions) >= AGENT_EXTRA_MIN_QUESTIONS:
+        point_value = agent_question_value(len(agent_questions))
+        for question in agent_questions:
+            question.points = point_value
+            question.question_text = question.question_text.replace(
+                "Pregunta generada por el agente:",
+                "Pregunta Extra:",
+            )
+        interview.max_score = calculate_max_score_for_template(interview.template)
+        return agent_questions
 
     skill_matches = await match_repository.list_skill_matches(session, interview.id)
-    target_match = next((item for item in skill_matches if not item.matched), None)
-    target_requirement = None
-    if target_match:
-        target_requirement = next(
-            (requirement for requirement in interview.template.requirements if requirement.id == target_match.requirement_id),
-            None,
-        )
-    if target_requirement is None and interview.template.requirements:
-        target_requirement = interview.template.requirements[0]
+    missing_matches = [item for item in skill_matches if not item.matched]
+    target_count = _choose_agent_question_count(interview, missing_matches)
+    point_value = agent_question_value(target_count)
+    created_questions: list[TemplateQuestion] = []
+    existing_count = len(agent_questions)
+    order_index = max((question.order_index for question in questions), default=-1) + 1
+    requirement_targets = _agent_requirement_targets(interview, missing_matches, target_count)
 
     role_name = interview.template.role_name
-    skill_name = target_requirement.skill_name if target_requirement else role_name
-    question_text = (
-        f"Pregunta generada por el agente: describe una situacion practica donde aplicaste {skill_name} "
-        f"en un puesto de {role_name} y explica el resultado."
+    for index in range(existing_count, target_count):
+        target_requirement = requirement_targets[index] if index < len(requirement_targets) else None
+        skill_name = target_requirement.skill_name if target_requirement else role_name
+        question_text = (
+            f"Pregunta Extra: describe una situacion practica donde aplicaste {skill_name} "
+            f"en un puesto de {role_name} y explica el resultado."
+        )
+        expected_answer = (
+            f"Debe explicar una experiencia concreta usando {skill_name}, mencionar acciones realizadas, "
+            "herramientas o criterios aplicados y el resultado obtenido."
+        )
+        question = await answer_repository.create_agent_question(
+            session,
+            template_id=interview.template.id,
+            interview_id=interview.id,
+            requirement_id=target_requirement.id if target_requirement else None,
+            question_text=question_text,
+            expected_answer=expected_answer,
+            points=float(point_value),
+            order_index=order_index + index,
+        )
+        interview.template.questions.append(question)
+        created_questions.append(question)
+    all_agent_questions = [*agent_questions, *created_questions]
+    for question in all_agent_questions:
+        question.points = point_value
+        question.question_text = question.question_text.replace(
+            "Pregunta generada por el agente:",
+            "Pregunta Extra:",
+        )
+    interview.max_score = calculate_max_score_for_template(interview.template)
+    return all_agent_questions
+
+
+def _choose_agent_question_count(interview, missing_matches: list) -> int:
+    requirement_count = len(interview.template.requirements or [])
+    missing_count = len(missing_matches)
+    if missing_count >= 3:
+        return AGENT_EXTRA_MAX_QUESTIONS
+    if missing_count == 2:
+        return 4
+    if missing_count == 1:
+        return 3
+    if requirement_count >= 5:
+        return 3
+    return AGENT_EXTRA_MIN_QUESTIONS
+
+
+def _agent_requirement_targets(interview, missing_matches: list, target_count: int) -> list:
+    requirements = list(interview.template.requirements or [])
+    missing_requirement_ids = {item.requirement_id for item in missing_matches}
+    ordered = [
+        requirement
+        for requirement in requirements
+        if requirement.id in missing_requirement_ids
+    ]
+    ordered.extend(requirement for requirement in requirements if requirement.id not in missing_requirement_ids)
+    if not ordered:
+        return []
+    targets = []
+    for index in range(target_count):
+        targets.append(ordered[index % len(ordered)])
+    return targets
+
+
+async def _recalculate_candidate_interview_scores(session: AsyncSession, interview) -> list:
+    answers = await answer_repository.list_answers(session, interview.id)
+    score_parts = split_answer_scores(answers)
+    interview.question_score = score_parts["question_score"]
+    interview.bonus_score = score_parts["bonus_score"]
+    interview.max_score = calculate_max_score_for_template(interview.template)
+    interview.final_score = (
+        _decimal(interview.initial_cv_score)
+        + _decimal(interview.question_score)
+        + _decimal(interview.bonus_score)
     )
-    expected_answer = (
-        f"Debe explicar una experiencia concreta usando {skill_name}, mencionar acciones realizadas, "
-        "herramientas o criterios aplicados y el resultado obtenido."
-    )
-    order_index = max((question.order_index for question in questions), default=-1) + 1
-    question = await answer_repository.create_agent_question(
-        session,
-        template_id=interview.template.id,
-        interview_id=interview.id,
-        requirement_id=target_requirement.id if target_requirement else None,
-        question_text=question_text,
-        expected_answer=expected_answer,
-        order_index=order_index,
-    )
-    interview.template.questions.append(question)
-    interview.max_score = _decimal(interview.max_score) + Decimal("1")
-    return question
+    return answers
 
 
 def _question_read(question: TemplateQuestion) -> CandidateQuestionRead:

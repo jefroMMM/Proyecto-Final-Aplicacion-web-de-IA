@@ -32,9 +32,19 @@ from app.schemas.template import (
     InterviewFinalReport,
 )
 from app.services.document_service import save_interview_document
-from app.services.candidate_interview_service import issue_candidate_token
+from app.services.candidate_interview_service import issue_candidate_token, _ensure_agent_questions
 from app.services.email_service import send_candidate_interview_email
 from app.services.openai_client import OpenAIClientFactory
+from app.services.scoring import (
+    BONUS_MAX_SCORE,
+    CV_MAX_SCORE,
+    bonus_question_value,
+    calculate_max_score_for_template,
+    clamp_score,
+    cv_requirement_value,
+    is_agent_question,
+    split_answer_scores,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +165,11 @@ async def analyze_cv_against_template(
             matched = True
             if not evidence:
                 evidence = deterministic_evidence
-        score_awarded = Decimal("0.5") if matched else Decimal("0")
+        score_awarded = (
+            clamp_score(cv_requirement_value(len(requirements)), CV_MAX_SCORE - initial_score)
+            if matched
+            else Decimal("0")
+        )
         initial_score += score_awarded
         db_matches.append(
             CandidateSkillMatch(
@@ -173,7 +187,7 @@ async def analyze_cv_against_template(
         interview_id=interview.id,
         matches=db_matches,
     )
-    interview.initial_cv_score = initial_score
+    interview.initial_cv_score = clamp_score(initial_score, CV_MAX_SCORE)
     interview.max_score = _to_decimal(calculate_template_max_score(interview.template))
     _refresh_interview_totals(interview)
     if interview.report:
@@ -200,6 +214,7 @@ async def start_template_interview(
     interview_id: uuid.UUID,
 ):
     interview = await _require_interview_with_template(session, interview_id)
+    await _ensure_agent_questions(session, interview=interview)
     first_question = await answer_repository.get_next_question(
         session,
         template_id=interview.template_id,
@@ -225,6 +240,7 @@ async def submit_text_answer(
     answer_text: str,
 ):
     interview = await _require_interview_with_template(session, interview_id)
+    await _ensure_agent_questions(session, interview=interview)
     if interview.status == "created":
         raise HTTPException(status_code=409, detail="Interview has not started")
     all_answers = await answer_repository.list_answers(session, interview_id)
@@ -277,14 +293,14 @@ async def submit_text_answer(
     elif evaluation.status in {"incorrect", "unknown"}:
         base_score = Decimal("0")
 
-    bonus_score = Decimal("0")
-    if (
-        evaluation.status == "correct"
-        and current_question.requirement_id
-        and cv_match
-        and not cv_match.matched
-    ):
-        bonus_score = Decimal("0.5")
+    base_questions = [question for question in interview.template.questions if question.source != "agent"]
+    current_bonus_total = sum((_to_decimal(answer.bonus_score) for answer in all_answers), Decimal("0"))
+    bonus_score = clamp_score(
+        bonus_question_value(len(base_questions))
+        if evaluation.status == "correct" and not is_agent_question(current_question)
+        else Decimal("0"),
+        BONUS_MAX_SCORE - current_bonus_total,
+    )
 
     final_score = base_score + bonus_score
     await answer_repository.create_answer(
@@ -299,9 +315,7 @@ async def submit_text_answer(
         feedback=evaluation.feedback,
         reason=evaluation.reasoning_summary,
     )
-    interview.question_score = _to_decimal(interview.question_score) + base_score
-    interview.bonus_score = _to_decimal(interview.bonus_score) + bonus_score
-    _refresh_interview_totals(interview)
+    await _recalculate_interview_scores(session, interview)
 
     updated_answers = await answer_repository.list_answers(session, interview_id)
     next_question = await answer_repository.get_next_question(
@@ -310,7 +324,13 @@ async def submit_text_answer(
         already_answered_question_ids={item.question_id for item in updated_answers},
         interview_id=interview.id,
     )
-    total_questions = len(interview.template.questions)
+    total_questions = len(
+        [
+            question
+            for question in interview.template.questions
+            if question.generated_for_interview_id is None or question.generated_for_interview_id == interview.id
+        ]
+    )
     if next_question:
         await transcript_repository.create_transcript(
             session,
@@ -338,6 +358,7 @@ async def submit_text_answer(
 
 async def get_score(session: AsyncSession, interview_id: uuid.UUID):
     interview = await _require_interview_with_template(session, interview_id)
+    await _recalculate_interview_scores(session, interview)
     matches = await match_repository.list_skill_matches(session, interview_id)
     percentage = 0.0
     if float(interview.max_score) > 0:
@@ -360,8 +381,9 @@ async def get_score(session: AsyncSession, interview_id: uuid.UUID):
 
 async def finalize_interview(session: AsyncSession, interview_id: uuid.UUID):
     interview = await _require_interview_with_template(session, interview_id)
-    answers = await answer_repository.list_answers(session, interview_id)
+    answers = await _recalculate_interview_scores(session, interview)
     skill_matches = await match_repository.list_skill_matches(session, interview_id)
+    score_parts = split_answer_scores(answers)
     percentage = (
         round((float(interview.final_score) / float(interview.max_score)) * 100, 2)
         if float(interview.max_score) > 0
@@ -396,8 +418,10 @@ async def finalize_interview(session: AsyncSession, interview_id: uuid.UUID):
         "questions_answered": len(answers),
         "answer_evaluations": [serialize_answer(item) for item in answers],
         "initial_cv_score": float(interview.initial_cv_score),
-        "question_score": float(interview.question_score),
-        "bonus_score": float(interview.bonus_score),
+        "base_question_score": float(score_parts["base_question_score"]),
+        "extra_question_score": float(score_parts["extra_question_score"]),
+        "question_score": float(score_parts["question_score"]),
+        "bonus_score": float(score_parts["bonus_score"]),
         "final_score": float(interview.final_score),
         "max_score": float(interview.max_score),
         "percentage": percentage,
@@ -429,14 +453,10 @@ async def get_final_report(session: AsyncSession, interview_id: uuid.UUID):
     interview = await _require_interview_with_template(session, interview_id)
     if not interview.report:
         return await finalize_interview(session, interview_id)
-    payload = dict(interview.report.report_json or {})
-    if "cv_requirement_matches" not in payload or any(
-        "question_text" not in item for item in payload.get("answer_evaluations", [])
-    ):
-        answers = await answer_repository.list_answers(session, interview.id)
-        skill_matches = await match_repository.list_skill_matches(session, interview.id)
-        _refresh_report_scores_from_interview(interview, answers, skill_matches)
-        await session.commit()
+    answers = await _recalculate_interview_scores(session, interview)
+    skill_matches = await match_repository.list_skill_matches(session, interview.id)
+    _refresh_report_scores_from_interview(interview, answers, skill_matches)
+    await session.commit()
     return InterviewFinalReport.model_validate(interview.report.report_json)
 
 
@@ -487,12 +507,11 @@ def _to_decimal(value: float | Decimal) -> Decimal:
 
 
 def calculate_template_max_score(template) -> float:
-    question_points = sum(float(question.points) for question in template.questions)
-    cv_points = len(template.requirements) * 0.5
-    return round(question_points + cv_points, 2)
+    return float(calculate_max_score_for_template(template))
 
 
 def _refresh_interview_totals(interview) -> None:
+    interview.max_score = _to_decimal(calculate_template_max_score(interview.template))
     interview.final_score = _to_decimal(interview.initial_cv_score) + _to_decimal(
         interview.question_score
     ) + _to_decimal(interview.bonus_score)
@@ -500,19 +519,16 @@ def _refresh_interview_totals(interview) -> None:
 
 async def _recalculate_interview_scores(session: AsyncSession, interview):
     answers = await answer_repository.list_answers(session, interview.id)
-    bonus_total = sum((_to_decimal(answer.bonus_score) for answer in answers), Decimal("0"))
-    question_total = sum(
-        (max(_to_decimal(answer.final_question_score) - _to_decimal(answer.bonus_score), Decimal("0")) for answer in answers),
-        Decimal("0"),
-    )
-    interview.question_score = question_total
-    interview.bonus_score = bonus_total
+    score_parts = split_answer_scores(answers)
+    interview.question_score = score_parts["question_score"]
+    interview.bonus_score = score_parts["bonus_score"]
     _refresh_interview_totals(interview)
     return answers
 
 
 def _refresh_report_scores_from_interview(interview, answers, skill_matches=None) -> None:
     skill_matches = list(skill_matches or [])
+    score_parts = split_answer_scores(answers)
     detected = [item.skill_name for item in skill_matches if item.matched]
     missing = [item.skill_name for item in skill_matches if not item.matched]
     percentage = (
@@ -527,8 +543,10 @@ def _refresh_report_scores_from_interview(interview, answers, skill_matches=None
         payload["missing_cv_skills"] = missing
         payload["cv_requirement_matches"] = [serialize_skill_match(item) for item in skill_matches]
     payload["initial_cv_score"] = float(interview.initial_cv_score)
-    payload["question_score"] = float(interview.question_score)
-    payload["bonus_score"] = float(interview.bonus_score)
+    payload["base_question_score"] = float(score_parts["base_question_score"])
+    payload["extra_question_score"] = float(score_parts["extra_question_score"])
+    payload["question_score"] = float(score_parts["question_score"])
+    payload["bonus_score"] = float(score_parts["bonus_score"])
     payload["final_score"] = float(interview.final_score)
     payload["max_score"] = float(interview.max_score)
     payload["percentage"] = percentage

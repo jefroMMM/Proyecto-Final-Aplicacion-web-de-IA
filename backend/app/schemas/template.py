@@ -168,6 +168,8 @@ class InterviewScoreResponse(BaseModel):
     interview_id: uuid.UUID
     status: str
     initial_cv_score: float
+    base_question_score: float = 0
+    extra_question_score: float = 0
     question_score: float
     bonus_score: float
     final_score: float

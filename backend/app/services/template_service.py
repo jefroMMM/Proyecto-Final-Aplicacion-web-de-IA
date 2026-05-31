@@ -22,6 +22,16 @@ async def create_template(
     session: AsyncSession,
     payload: InterviewTemplateCreate,
 ):
+    if not payload.questions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Template must include at least one required question",
+        )
+    if any(not question.is_required for question in payload.questions):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="All template questions must be required",
+        )
     template = await template_repository.create_template(
         session,
         title=payload.title,
@@ -138,6 +148,11 @@ async def add_question(
     payload: TemplateQuestionCreate,
 ):
     await ensure_template(session, template_id)
+    if not payload.is_required:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Template questions must be required",
+        )
     if payload.requirement_id:
         requirement = await template_repository.get_requirement(
             session,
@@ -192,6 +207,11 @@ async def update_question(
     ):
         value = getattr(payload, field)
         if value is not None:
+            if field == "is_required" and value is False:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Template questions must be required",
+                )
             setattr(question, field, value)
     await session.commit()
     return question

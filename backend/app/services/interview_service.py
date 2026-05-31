@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories import interviews as interview_repository
 from app.repositories import users as user_repository
 from app.schemas.interview import InterviewCreate
+from app.services.scoring import calculate_max_score_for_template
 
 
 async def create_interview(
@@ -49,7 +50,11 @@ async def ensure_interview_exists(session: AsyncSession, interview_id: uuid.UUID
 
 
 async def list_interviews(session: AsyncSession):
-    return await interview_repository.list_interviews(session)
+    interviews = await interview_repository.list_interviews(session)
+    for interview in interviews:
+        if interview.template:
+            interview.max_score = calculate_max_score_for_template(interview.template)
+    return interviews
 
 
 async def get_interview_detail(session: AsyncSession, interview_id: uuid.UUID):

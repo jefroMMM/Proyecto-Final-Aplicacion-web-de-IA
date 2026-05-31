@@ -295,6 +295,8 @@ export interface CandidateReport {
     created_at: string;
   }>;
   initial_cv_score: number;
+  base_question_score?: number;
+  extra_question_score?: number;
   question_score: number;
   bonus_score: number;
   final_score: number;
@@ -357,6 +359,7 @@ export interface CandidateFinalResultResponse {
   questions: Array<{
     question: string;
     expected_answer: string;
+    source?: string;
     candidate_answer: string;
     score: number;
     max_score: number;

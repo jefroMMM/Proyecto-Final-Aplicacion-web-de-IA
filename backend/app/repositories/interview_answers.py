@@ -109,6 +109,7 @@ async def create_agent_question(
     requirement_id: uuid.UUID | None,
     question_text: str,
     expected_answer: str,
+    points: float,
     order_index: int,
 ) -> TemplateQuestion:
     question = TemplateQuestion(
@@ -119,7 +120,7 @@ async def create_agent_question(
         expected_answer=expected_answer,
         source="agent",
         difficulty="medium",
-        points=1,
+        points=points,
         is_required=True,
         order_index=order_index,
     )

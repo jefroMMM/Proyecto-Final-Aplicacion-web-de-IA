@@ -351,6 +351,9 @@ function ResultScreen({ result }: { result: CandidateFinalResultResponse }) {
         <div className="grid gap-4 md:grid-cols-2">
           {result.questions.map((item) => (
             <article key={item.question} className="rounded-lg border border-blue-100 bg-white p-4 shadow-sm">
+              {item.source === "agent" ? (
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-blue-600">Pregunta Extra</p>
+              ) : null}
               <p className="text-sm font-semibold text-slate-950">{item.question}</p>
               <div className="mt-4 grid gap-3 text-sm">
                 <div>

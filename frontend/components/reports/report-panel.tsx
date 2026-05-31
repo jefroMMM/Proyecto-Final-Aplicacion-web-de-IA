@@ -21,10 +21,13 @@ interface ReportPanelProps {
 }
 
 export function ReportPanel({ report, interviewId, onScoreUpdated }: ReportPanelProps) {
+  const baseQuestionScore = report.base_question_score ?? scoreBySource(report, "template");
+  const extraQuestionScore = report.extra_question_score ?? scoreBySource(report, "agent");
   const scoreData = [
     { name: "CV", value: report.initial_cv_score },
-    { name: "Preguntas", value: report.question_score },
-    { name: "Bonus resp.", value: report.bonus_score },
+    { name: "Base", value: baseQuestionScore },
+    { name: "Bonus", value: report.bonus_score },
+    { name: "Extras", value: extraQuestionScore },
     { name: "Final", value: report.final_score },
   ];
 
@@ -44,7 +47,7 @@ export function ReportPanel({ report, interviewId, onScoreUpdated }: ReportPanel
           <Metric label="Score final" value={`${report.final_score} / ${report.max_score}`} progress={report.percentage} />
           <Metric label="Porcentaje" value={`${report.percentage}%`} progress={report.percentage} />
           <Metric label="Preguntas" value={report.questions_answered} detail="Respondidas" />
-          <Metric label="Bonus respuestas" value={report.bonus_score} detail="Extra fuera del maximo base" />
+          <Metric label="Bonus" value={report.bonus_score} detail="Bolsa maxima 1.5" />
         </CardContent>
       </Card>
 
@@ -127,13 +130,16 @@ export function ReportPanel({ report, interviewId, onScoreUpdated }: ReportPanel
 
 function ScoreSummary({ report }: { report: CandidateReport }) {
   const cvMatches = report.cv_requirement_matches ?? [];
+  const baseQuestionScore = report.base_question_score ?? scoreBySource(report, "template");
+  const extraQuestionScore = report.extra_question_score ?? scoreBySource(report, "agent");
 
   return (
     <div className="grid gap-4">
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-5">
         <Metric label="CV" value={report.initial_cv_score} detail="Requisitos cumplidos" />
-        <Metric label="Preguntas" value={report.question_score} detail="Puntos base" />
-          <Metric label="Bonus respuestas" value={report.bonus_score} detail="Extra fuera del maximo base" />
+        <Metric label="Preguntas base" value={baseQuestionScore} detail="Plantilla" />
+        <Metric label="Bonus" value={report.bonus_score} detail="Respuestas correctas" />
+        <Metric label="Preguntas extra" value={extraQuestionScore} detail="Agente" />
         <Metric label="Total" value={`${report.final_score} / ${report.max_score}`} detail={`${report.percentage}%`} />
       </div>
 
@@ -172,7 +178,7 @@ function ScoreSummary({ report }: { report: CandidateReport }) {
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <p className="font-medium">
                       Pregunta {index + 1}: {item.question_text || "Sin texto registrado"}
-                      {item.question_source === "agent" ? <span className="ml-2 text-xs text-primary">Agente IA</span> : null}
+                      {item.question_source === "agent" ? <span className="ml-2 text-xs text-primary">Pregunta Extra</span> : null}
                     </p>
                     <Badge variant={item.evaluation_status === "correct" ? "success" : item.evaluation_status === "incorrect" ? "danger" : "warning"}>
                       {item.final_question_score} pts
@@ -184,7 +190,7 @@ function ScoreSummary({ report }: { report: CandidateReport }) {
                   </p>
                   <p className="text-muted-foreground">
                     {item.bonus_score > 0
-                      ? "Bonus aplicado porque la respuesta fue correcta y el requisito no estaba confirmado en el CV."
+                      ? "Bonus aplicado porque la respuesta base fue correcta segun el criterio de evaluacion."
                       : "Sin bonus aplicado."}
                   </p>
                   <p className="text-muted-foreground">{item.reason || item.feedback || "Sin razon registrada."}</p>
@@ -244,7 +250,7 @@ function AnswerEvaluationRow({
       <tr className="border-b border-border bg-card align-top">
         <td className="px-4 py-4">
           <p className="text-xs font-semibold uppercase text-muted-foreground">Pregunta {index + 1}</p>
-          {item.question_source === "agent" ? <Badge className="mb-2 mt-1" variant="default">Agente IA</Badge> : null}
+          {item.question_source === "agent" ? <Badge className="mb-2 mt-1" variant="default">Pregunta Extra</Badge> : null}
           <p className="mt-1 leading-6 text-foreground">{item.question_text || "Pregunta no registrada"}</p>
         </td>
         <td className="px-4 py-4 leading-6 text-muted-foreground">{item.transcript_text}</td>
@@ -334,4 +340,14 @@ function InsightList({ title, items, empty }: { title: string; items: string[]; 
       </CardContent>
     </Card>
   );
+}
+
+function scoreBySource(report: CandidateReport, source: "agent" | "template") {
+  return report.answer_evaluations.reduce((total, item) => {
+    const isAgent = item.question_source === "agent";
+    if ((source === "agent" && !isAgent) || (source === "template" && isAgent)) {
+      return total;
+    }
+    return total + Math.max(0, item.final_question_score - item.bonus_score);
+  }, 0);
 }

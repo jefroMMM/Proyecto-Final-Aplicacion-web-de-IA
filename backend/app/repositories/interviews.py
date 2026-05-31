@@ -35,7 +35,13 @@ async def create_interview(
 
 async def list_interviews(session: AsyncSession) -> list[Interview]:
     result = await session.execute(
-        select(Interview).order_by(Interview.created_at.desc())
+        select(Interview)
+        .options(
+            selectinload(Interview.template).selectinload(InterviewTemplate.requirements),
+            selectinload(Interview.template).selectinload(InterviewTemplate.questions),
+            with_loader_criteria(TemplateQuestion, TemplateQuestion.generated_for_interview_id.is_(None)),
+        )
+        .order_by(Interview.created_at.desc())
     )
     return list(result.scalars().all())
 
