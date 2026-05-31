@@ -26,6 +26,7 @@ export interface InterviewCreateFromTemplate {
   template_id: string;
   candidate_name: string;
   candidate_email?: string | null;
+  send_invite?: boolean;
 }
 
 export interface Interview {
@@ -41,6 +42,9 @@ export interface Interview {
   bonus_score: number;
   final_score: number;
   max_score: number;
+  candidate_access_token?: string | null;
+  candidate_interview_url?: string | null;
+  candidate_email_sent?: boolean | null;
   created_at: string;
   updated_at: string;
 }
@@ -285,4 +289,64 @@ export interface CandidateReport {
   weaknesses: string[];
   recommendation: "highly_recommended" | "recommended" | "needs_review" | "not_recommended";
   final_summary: string;
+}
+
+export interface CandidateTokenValidationResponse {
+  interview_id: string;
+  candidate_name: string;
+  candidate_email?: string | null;
+  job_title: string;
+  status: string;
+  greeting: string;
+  total_questions: number;
+}
+
+export interface CandidateQuestion {
+  id: string;
+  question_text: string;
+  expected_answer?: string;
+  difficulty: TemplateDifficulty | string;
+  order_index: number;
+  points: number;
+  is_required: boolean;
+}
+
+export interface CandidateQuestionsResponse {
+  interview_id: string;
+  questions: CandidateQuestion[];
+}
+
+export interface CandidateVoiceAnswerResponse {
+  interview_id: string;
+  candidate_transcript: string;
+  question: CandidateQuestion;
+  evaluation_status: AnswerStatus;
+  matched_keywords: string[];
+  keyword_score: number;
+  quality_score: number;
+  final_question_score: number;
+  feedback: string;
+  next_question?: CandidateQuestion | null;
+  completed: boolean;
+  progress_percentage: number;
+}
+
+export interface CandidateFinalResultResponse {
+  interview_id: string;
+  candidate_name: string;
+  status: string;
+  total_score: number;
+  max_score: number;
+  percentage: number;
+  questions: Array<{
+    question: string;
+    expected_answer: string;
+    candidate_answer: string;
+    score: number;
+    max_score: number;
+    feedback: string;
+  }>;
+  recommendation_lines: string[];
+  farewell: string;
+  finished_at: string;
 }

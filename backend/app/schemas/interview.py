@@ -39,6 +39,9 @@ class InterviewRead(BaseModel):
     bonus_score: float = 0
     final_score: float = 0
     max_score: float = 0
+    candidate_access_token: str | None = None
+    candidate_interview_url: str | None = None
+    candidate_email_sent: bool | None = None
     created_at: datetime
     updated_at: datetime
 

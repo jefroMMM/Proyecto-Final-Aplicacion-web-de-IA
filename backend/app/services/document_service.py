@@ -1,15 +1,19 @@
 import io
+import base64
 import uuid
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile, status
+import fitz
 from pypdf import PdfReader
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.repositories import documents as document_repository
 from app.rag.pipeline import build_rag_pipeline, map_rag_provider_error
 from app.schemas.document import DocumentType
 from app.schemas.upload import UploadDocumentResponse
+from app.services.openai_client import OpenAIClientFactory
 from app.services.interview_service import ensure_interview_exists
 
 PDF_CONTENT_TYPES = {"application/pdf"}
@@ -33,7 +37,7 @@ async def save_interview_document(
         )
 
     content = await file.read()
-    text = extract_text_from_upload(
+    text = await extract_text_from_upload(
         content=content,
         filename=filename,
         content_type=file.content_type,
@@ -66,7 +70,7 @@ async def save_interview_document(
     )
 
 
-def extract_text_from_upload(
+async def extract_text_from_upload(
     *,
     content: bytes,
     filename: str,
@@ -77,6 +81,8 @@ def extract_text_from_upload(
 
     if extension == ".pdf" or content_type in PDF_CONTENT_TYPES:
         text = extract_text_from_pdf(content)
+        if not _normalize_text(text):
+            text = await extract_text_from_scanned_pdf(content, filename=filename)
     elif allow_txt and (extension == ".txt" or content_type in TXT_CONTENT_TYPES):
         text = decode_text_file(content)
     else:
@@ -86,7 +92,7 @@ def extract_text_from_upload(
             detail=f"Unsupported file type. Upload {allowed}.",
         )
 
-    normalized_text = "\n".join(line.strip() for line in text.splitlines() if line.strip())
+    normalized_text = _normalize_text(text)
     if not normalized_text:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -106,6 +112,72 @@ def extract_text_from_pdf(content: bytes) -> str:
         ) from exc
 
 
+async def extract_text_from_scanned_pdf(content: bytes, *, filename: str) -> str:
+    if not settings.OPENAI_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "No readable text could be extracted from the uploaded PDF. "
+                "This looks like a scanned PDF and OPENAI_API_KEY is required for OCR."
+            ),
+        )
+
+    images = render_pdf_pages_for_ocr(content, max_pages=6)
+    if not images:
+        return ""
+
+    client = OpenAIClientFactory().create()
+    content_parts: list[dict] = [
+        {
+            "type": "text",
+            "text": (
+                "Extrae todo el texto legible de este CV escaneado. "
+                "Devuelve solo texto plano, manteniendo secciones como experiencia, estudios, habilidades y contacto. "
+                f"Archivo: {filename}"
+            ),
+        }
+    ]
+    for image_bytes in images:
+        encoded = base64.b64encode(image_bytes).decode("ascii")
+        content_parts.append(
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{encoded}"},
+            }
+        )
+
+    response = await client.chat.completions.create(
+        model=settings.OPENAI_MODEL,
+        temperature=0,
+        messages=[
+            {
+                "role": "system",
+                "content": "Eres un OCR para CVs escaneados. No inventes información.",
+            },
+            {"role": "user", "content": content_parts},
+        ],
+    )
+    return response.choices[0].message.content or ""
+
+
+def render_pdf_pages_for_ocr(content: bytes, *, max_pages: int) -> list[bytes]:
+    try:
+        document = fitz.open(stream=content, filetype="pdf")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Could not read scanned PDF for OCR",
+        ) from exc
+
+    images: list[bytes] = []
+    with document:
+        for page_index in range(min(max_pages, document.page_count)):
+            page = document.load_page(page_index)
+            pixmap = page.get_pixmap(matrix=fitz.Matrix(1.5, 1.5), alpha=False)
+            images.append(pixmap.tobytes("jpeg"))
+    return images
+
+
 def decode_text_file(content: bytes) -> str:
     for encoding in ("utf-8", "utf-8-sig", "latin-1"):
         try:
@@ -116,3 +188,7 @@ def decode_text_file(content: bytes) -> str:
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         detail="Could not decode TXT file",
     )
+
+
+def _normalize_text(text: str) -> str:
+    return "\n".join(line.strip() for line in text.splitlines() if line.strip())

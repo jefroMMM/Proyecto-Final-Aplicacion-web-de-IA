@@ -68,6 +68,14 @@ async def analyze_cv_for_interview(
     return await template_interview_service.analyze_cv_against_template(session, interview_id)
 
 
+@router.post("/{interview_id}/send-candidate-invite", response_model=InterviewRead)
+async def send_candidate_invite(
+    interview_id: uuid.UUID,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+):
+    return await template_interview_service.send_candidate_invite(session, interview_id)
+
+
 @router.post("/{interview_id}/start", response_model=StartInterviewResponse)
 async def start_template_interview(
     interview_id: uuid.UUID,

@@ -1,6 +1,7 @@
 """SQLAlchemy models."""
 
 from app.models.candidate_skill_match import CandidateSkillMatch
+from app.models.candidate_interview_token import CandidateInterviewToken
 from app.models.document import Document
 from app.models.embedding_metadata import EmbeddingMetadata
 from app.models.interview_answer import InterviewAnswer
@@ -15,6 +16,7 @@ from app.models.user import User
 
 __all__ = [
     "CandidateSkillMatch",
+    "CandidateInterviewToken",
     "Document",
     "EmbeddingMetadata",
     "InterviewAnswer",

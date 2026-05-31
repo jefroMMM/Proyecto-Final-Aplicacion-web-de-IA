@@ -21,7 +21,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             Entrevistas técnicas por voz con evaluación estructurada
           </div>
           <Button asChild>
-            <Link href="/interviews/new">Nueva entrevista</Link>
+            <Link href="/dashboard/interviews/new">Nueva entrevista</Link>
           </Button>
         </header>
         <main className="px-4 py-6 lg:px-8">{children}</main>

@@ -49,6 +49,12 @@ export async function analyzeInterviewCv(interviewId: string) {
   });
 }
 
+export async function sendCandidateInvite(interviewId: string): Promise<Interview> {
+  return apiRequest<Interview>(`/interviews/${interviewId}/send-candidate-invite`, {
+    method: "POST",
+  });
+}
+
 export async function startTemplateInterview(interviewId: string): Promise<StartInterviewResponse> {
   return apiRequest<StartInterviewResponse>(`/interviews/${interviewId}/start`, {
     method: "POST",

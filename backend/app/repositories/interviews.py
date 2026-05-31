@@ -7,6 +7,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.models.interview_answer import InterviewAnswer
 from app.models.interview import Interview
 from app.models.interview_template import InterviewTemplate
+from app.models.template_question import TemplateQuestion
 from app.models.user import User
 
 
@@ -56,7 +57,9 @@ async def get_interview_detail(
         .options(
             selectinload(Interview.user),
             selectinload(Interview.template).selectinload(InterviewTemplate.requirements),
-            selectinload(Interview.template).selectinload(InterviewTemplate.questions),
+            selectinload(Interview.template)
+            .selectinload(InterviewTemplate.questions)
+            .selectinload(TemplateQuestion.requirement),
             selectinload(Interview.documents),
             selectinload(Interview.transcripts),
             selectinload(Interview.report),

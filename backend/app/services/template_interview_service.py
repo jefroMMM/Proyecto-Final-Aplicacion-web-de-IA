@@ -6,6 +6,7 @@ from decimal import Decimal
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.models.candidate_skill_match import CandidateSkillMatch
 from app.prompts.template_interview import (
     ANSWER_EVALUATION_SYSTEM_PROMPT,
@@ -29,6 +30,8 @@ from app.schemas.template import (
     InterviewFinalReport,
 )
 from app.services.document_service import save_interview_document
+from app.services.candidate_interview_service import issue_candidate_token
+from app.services.email_service import send_candidate_interview_email
 from app.services.openai_client import OpenAIClientFactory
 
 logger = logging.getLogger(__name__)
@@ -50,13 +53,44 @@ async def create_interview_from_template(
         template_id=template.id,
         candidate_email=payload.candidate_email,
     )
-    interview.max_score = _to_decimal(
-        sum(float(question.points) for question in template.questions)
-        + (0.5 * len(template.requirements))
-        + (0.5 * len(template.requirements))
-    )
+    interview.max_score = _to_decimal(calculate_template_max_score(template))
     await session.commit()
     await session.refresh(interview)
+    if not payload.send_invite:
+        return interview
+
+    return await send_candidate_invite(session, interview.id)
+
+
+async def send_candidate_invite(
+    session: AsyncSession,
+    interview_id: uuid.UUID,
+):
+    interview = await _require_interview_with_template(session, interview_id)
+    if not interview.cv_document_id:
+        raise HTTPException(status_code=409, detail="Interview CV must be uploaded before sending invite")
+
+    matches = await match_repository.list_skill_matches(session, interview_id)
+    if interview.template.requirements and not matches:
+        raise HTTPException(status_code=409, detail="Interview CV must be analyzed before sending invite")
+
+    candidate_token = await issue_candidate_token(session, interview.id)
+    candidate_url = f"{settings.PUBLIC_FRONTEND_URL.rstrip('/')}/entrevista?token={candidate_token}"
+    email_sent = False
+    if interview.candidate_email:
+        try:
+            email_sent = await send_candidate_interview_email(
+                to_email=interview.candidate_email,
+                candidate_name=interview.candidate_name,
+                interview_url=candidate_url,
+                token=candidate_token,
+            )
+        except Exception:
+            logger.exception("Candidate interview email failed interview_id=%s", interview.id)
+    interview.candidate_access_token = candidate_token
+    interview.candidate_interview_url = candidate_url
+    interview.candidate_email_sent = email_sent
+    await session.commit()
     return interview
 
 
@@ -127,6 +161,7 @@ async def analyze_cv_against_template(
         matches=db_matches,
     )
     interview.initial_cv_score = initial_score
+    interview.max_score = _to_decimal(calculate_template_max_score(interview.template))
     _refresh_interview_totals(interview)
     await session.commit()
     persisted_matches = await match_repository.list_skill_matches(session, interview.id)
@@ -388,6 +423,12 @@ async def _require_interview_with_template(session: AsyncSession, interview_id: 
 
 def _to_decimal(value: float | Decimal) -> Decimal:
     return Decimal(str(value))
+
+
+def calculate_template_max_score(template) -> float:
+    question_points = sum(float(question.points) for question in template.questions)
+    cv_points = len(template.requirements) * 0.5
+    return round(question_points + cv_points, 2)
 
 
 def _refresh_interview_totals(interview) -> None:

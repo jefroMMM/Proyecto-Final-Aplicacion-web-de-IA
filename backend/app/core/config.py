@@ -34,15 +34,23 @@ class Settings(BaseSettings):
     CARTESIA_OUTPUT_ENCODING: str = "pcm_f32le"
     CARTESIA_SAMPLE_RATE: int = 44100
 
-    ASSEMBLYAI_SPEECH_MODEL: str = "best"
+    ASSEMBLYAI_SPEECH_MODEL: str = "universal-3-pro"
     ASSEMBLYAI_LANGUAGE_CODE: str = "es"
     ASSEMBLYAI_LANGUAGE_DETECTION: bool = False
     ASSEMBLYAI_SAMPLE_RATE: int = 16000
 
     NEXT_PUBLIC_API_URL: str = "http://localhost:8000"
     PUBLIC_BACKEND_URL: str = "http://localhost:8000"
+    PUBLIC_FRONTEND_URL: str = "http://localhost:3000"
     AUDIO_STORAGE_DIR: str = "storage/audio"
     SEED_DEMO_TEMPLATES: bool = True
+
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_ENCRYPTION: str = "tls"
+    SMTP_FROM_EMAIL: str = ""
 
     @computed_field
     @property

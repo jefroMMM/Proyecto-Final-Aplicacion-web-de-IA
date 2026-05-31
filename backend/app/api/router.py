@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.audio import audio_routes
 from app.api.routes import (
+    candidate_interview,
     health,
     interview_workflow,
     interviews,
@@ -14,6 +15,7 @@ from app.api.routes import (
 
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
+api_router.include_router(candidate_interview.router)
 api_router.include_router(templates.router)
 api_router.include_router(interviews.router)
 api_router.include_router(upload.router)

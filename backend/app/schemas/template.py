@@ -150,6 +150,7 @@ class InterviewCreateV2(BaseModel):
     template_id: uuid.UUID
     candidate_name: str = Field(min_length=1, max_length=160)
     candidate_email: str | None = Field(default=None, max_length=320)
+    send_invite: bool = True
 
 
 class InterviewScoreResponse(BaseModel):

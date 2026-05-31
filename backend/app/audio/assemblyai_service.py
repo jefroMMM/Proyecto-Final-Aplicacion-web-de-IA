@@ -76,9 +76,10 @@ class AssemblyAIService:
         return upload_url
 
     async def _request_transcript(self, upload_url: str) -> str:
+        speech_models = parse_speech_models(settings.ASSEMBLYAI_SPEECH_MODEL)
         payload = {
             "audio_url": upload_url,
-            "speech_model": settings.ASSEMBLYAI_SPEECH_MODEL,
+            "speech_models": speech_models,
         }
 
         if settings.ASSEMBLYAI_LANGUAGE_DETECTION:
@@ -87,8 +88,8 @@ class AssemblyAIService:
             payload["language_code"] = settings.ASSEMBLYAI_LANGUAGE_CODE
 
         logger.info(
-            "Requesting AssemblyAI transcript speech_model=%s language_detection=%s language_code=%s sample_rate=%s",
-            settings.ASSEMBLYAI_SPEECH_MODEL,
+            "Requesting AssemblyAI transcript speech_models=%s language_detection=%s language_code=%s sample_rate=%s",
+            speech_models,
             settings.ASSEMBLYAI_LANGUAGE_DETECTION,
             settings.ASSEMBLYAI_LANGUAGE_CODE,
             settings.ASSEMBLYAI_SAMPLE_RATE,
@@ -163,6 +164,19 @@ class AssemblyAIService:
                     )
 
                 await asyncio.sleep(interval_seconds)
+
+
+def parse_speech_models(value: str) -> list[str]:
+    normalized = value.strip().lower()
+    legacy_aliases = {
+        "best": ["universal-3-pro", "universal-2"],
+        "nano": ["universal-2"],
+    }
+    if normalized in legacy_aliases:
+        return legacy_aliases[normalized]
+
+    models = [item.strip() for item in value.split(",") if item.strip()]
+    return models or ["universal-3-pro", "universal-2"]
 
 
 def validate_audio_file(file: UploadFile) -> None:

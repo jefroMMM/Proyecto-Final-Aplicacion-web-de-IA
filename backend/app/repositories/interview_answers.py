@@ -69,6 +69,7 @@ async def get_next_question(
     result = await session.execute(
         select(TemplateQuestion)
         .where(TemplateQuestion.template_id == template_id)
+        .options(selectinload(TemplateQuestion.requirement))
         .order_by(TemplateQuestion.order_index.asc(), TemplateQuestion.created_at.asc())
     )
     for question in result.scalars().all():
