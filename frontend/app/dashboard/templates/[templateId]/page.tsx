@@ -1,9 +1,11 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { FileText, ListChecks, Loader2 } from "lucide-react";
 
+import { PageHeader } from "@/components/admin/page-header";
+import { StatCard } from "@/components/admin/stat-card";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { AppLayout } from "@/components/layout/app-layout";
 import { QuestionEditor } from "@/components/templates/question-editor";
@@ -35,7 +37,7 @@ export default function TemplateDetailPage() {
   const [savingGeneral, setSavingGeneral] = useState(false);
   const [generalForm, setGeneralForm] = useState({ title: "", description: "", role_name: "" });
 
-  async function loadTemplate() {
+  const loadTemplate = useCallback(async function loadTemplate() {
     setLoading(true);
     try {
       const data = await getTemplate(templateId);
@@ -46,11 +48,11 @@ export default function TemplateDetailPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [showToast, templateId]);
 
   useEffect(() => {
     loadTemplate();
-  }, [templateId]);
+  }, [loadTemplate]);
 
   async function handleSaveGeneral(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -76,15 +78,21 @@ export default function TemplateDetailPage() {
 
   return (
     <AppLayout>
-      <div className="mb-6">
-        <p className="text-sm text-primary">Plantillas</p>
-        <h1 className="mt-1 text-3xl font-semibold">{template.title}</h1>
+      <PageHeader
+        eyebrow="Plantillas"
+        title={template.title}
+        description={`Configura el perfil ${template.role_name}, sus requisitos y las preguntas evaluables.`}
+      />
+
+      <div className="mb-6 grid gap-3 sm:grid-cols-2">
+        <StatCard label="Requisitos" value={template.requirements.length} detail="Criterios del puesto" icon={ListChecks} />
+        <StatCard label="Preguntas" value={template.questions.length} detail="Banco de evaluacion" icon={FileText} tone="accent" />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <Card className="glass-panel">
-          <CardHeader><CardTitle>Datos generales</CardTitle></CardHeader>
-          <CardContent>
+          <CardHeader className="border-b border-border"><CardTitle>Datos generales</CardTitle></CardHeader>
+          <CardContent className="pt-5">
             <form onSubmit={handleSaveGeneral} className="space-y-3">
               <div className="space-y-2">
                 <Label htmlFor="title">Título</Label>
@@ -107,8 +115,8 @@ export default function TemplateDetailPage() {
         </Card>
 
         <Card className="glass-panel">
-          <CardHeader><CardTitle>Requisitos</CardTitle></CardHeader>
-          <CardContent>
+          <CardHeader className="border-b border-border"><CardTitle>Requisitos</CardTitle></CardHeader>
+          <CardContent className="pt-5">
             <RequirementEditor
               requirements={template.requirements}
               onCreate={async (payload) => {
@@ -144,8 +152,8 @@ export default function TemplateDetailPage() {
       </div>
 
       <Card className="glass-panel mt-6">
-        <CardHeader><CardTitle>Preguntas</CardTitle></CardHeader>
-        <CardContent>
+        <CardHeader className="border-b border-border"><CardTitle>Preguntas</CardTitle></CardHeader>
+        <CardContent className="pt-5">
           <QuestionEditor
             questions={template.questions}
             requirements={template.requirements}

@@ -1,59 +1,63 @@
 import Link from "next/link";
-import { Calendar, FileText, Mic2 } from "lucide-react";
+import { CalendarClock, FileText, Mail, Mic2 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
+import { InterviewStatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { formatDateTime, interviewPercentage } from "@/lib/admin-format";
 import type { Interview } from "@/types/api";
 
-const statusVariant = {
-  created: "secondary",
-  pending: "warning",
-  in_progress: "default",
-  completed: "success",
-  cancelled: "danger",
-} as const;
-
-const statusLabel = {
-  created: "Creada",
-  pending: "Pendiente",
-  in_progress: "En curso",
-  completed: "Completada",
-  cancelled: "Cancelada",
-} as const;
-
 export function InterviewCard({ interview }: { interview: Interview }) {
+  const percentage = interviewPercentage(interview);
+  const hasCandidateLink = Boolean(interview.candidate_interview_url);
+
   return (
     <Card className="glass-panel">
-      <CardHeader>
+      <CardHeader className="pb-4">
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <CardTitle>{interview.candidate_name}</CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">{interview.job_title}</p>
+          <div className="min-w-0">
+            <CardTitle className="truncate text-lg">{interview.candidate_name}</CardTitle>
+            <p className="mt-1 truncate text-sm text-muted-foreground">{interview.job_title}</p>
           </div>
-          <Badge variant={statusVariant[interview.status] ?? "secondary"}>
-            {statusLabel[interview.status] ?? interview.status}
-          </Badge>
+          <InterviewStatusBadge status={interview.status} />
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Calendar className="h-4 w-4" />
-          {new Date(interview.created_at).toLocaleDateString()}
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
+          <div className="flex items-center gap-2">
+            <CalendarClock className="h-4 w-4" />
+            <span>{formatDateTime(interview.created_at)}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Mail className="h-4 w-4" />
+            <span>{interview.candidate_email_sent ? "Correo enviado" : "Pendiente de correo"}</span>
+          </div>
         </div>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Button asChild size="sm">
-            <Link href={`/interviews/${interview.id}`}>
-              <Mic2 className="mr-2 h-4 w-4" />
-              Abrir
-            </Link>
-          </Button>
+
+        <div>
+          <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+            <span>Score final</span>
+            <span>{interview.final_score} / {interview.max_score}</span>
+          </div>
+          <Progress value={percentage} />
+        </div>
+
+        <div className="flex flex-wrap gap-2">
           <Button asChild size="sm" variant="secondary">
-            <Link href={`/reports/${interview.id}`}>
+            <Link href={`/dashboard/interviews/${interview.id}/report`}>
               <FileText className="mr-2 h-4 w-4" />
               Reporte
             </Link>
           </Button>
+          {hasCandidateLink ? (
+            <Button asChild size="sm" variant="outline">
+              <Link href={interview.candidate_interview_url ?? "#"} target="_blank">
+                <Mic2 className="mr-2 h-4 w-4" />
+                Enlace candidato
+              </Link>
+            </Button>
+          ) : null}
         </div>
       </CardContent>
     </Card>

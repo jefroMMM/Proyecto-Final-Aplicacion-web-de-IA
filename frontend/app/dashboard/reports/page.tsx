@@ -1,0 +1,103 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { BarChart3, CheckCircle2, FileText } from "lucide-react";
+
+import { PageHeader } from "@/components/admin/page-header";
+import { SearchBox } from "@/components/admin/search-box";
+import { InterviewStatusBadge } from "@/components/admin/status-badge";
+import { StatCard } from "@/components/admin/stat-card";
+import { EmptyState } from "@/components/feedback/empty-state";
+import { LoadingState } from "@/components/feedback/loading-state";
+import { AppLayout } from "@/components/layout/app-layout";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { averageCompletedScore, formatDateTime, interviewPercentage } from "@/lib/admin-format";
+import { listInterviews } from "@/lib/services/interviews";
+import type { Interview } from "@/types/api";
+
+export default function DashboardReportsPage() {
+  const [interviews, setInterviews] = useState<Interview[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    listInterviews()
+      .then(setInterviews)
+      .catch((err) => setError(err instanceof Error ? err.message : "No se pudieron cargar reportes"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const reportable = useMemo(() => interviews.filter((item) => item.status === "completed" || item.final_score > 0), [interviews]);
+  const filtered = useMemo(() => {
+    const term = search.toLowerCase();
+    return reportable.filter((item) => `${item.candidate_name} ${item.job_title} ${item.candidate_email ?? ""}`.toLowerCase().includes(term));
+  }, [reportable, search]);
+
+  return (
+    <AppLayout>
+      <PageHeader
+        eyebrow="Reportes"
+        title="Reportes de candidatos"
+        description="Accede a resultados finales, puntajes y evidencia de evaluacion para entrevistas completadas."
+      />
+
+      <div className="mb-6 grid gap-3 sm:grid-cols-3">
+        <StatCard label="Reportes" value={reportable.length} detail="Disponibles" icon={FileText} />
+        <StatCard label="Completadas" value={interviews.filter((item) => item.status === "completed").length} detail="Estado finalizado" icon={CheckCircle2} tone="success" />
+        <StatCard label="Promedio" value={`${averageCompletedScore(interviews)}%`} detail="Score final" icon={BarChart3} tone="warning" />
+      </div>
+
+      <section className="admin-panel p-4">
+        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <p className="text-sm text-muted-foreground">{filtered.length} resultados</p>
+          <SearchBox placeholder="Buscar candidato, correo o puesto" value={search} onChange={setSearch} />
+        </div>
+
+        {loading ? <LoadingState label="Cargando reportes" /> : null}
+        {!loading && error ? <EmptyState title="No se pudo cargar" description={error} /> : null}
+        {!loading && !error && reportable.length === 0 ? (
+          <EmptyState title="Sin reportes" description="Finaliza una entrevista para generar el primer reporte." actionHref="/dashboard/interviews" actionLabel="Ver entrevistas" />
+        ) : null}
+        {!loading && !error && reportable.length > 0 && filtered.length === 0 ? (
+          <EmptyState title="Sin resultados" description="No hay reportes que coincidan con la busqueda." />
+        ) : null}
+        {!loading && !error && filtered.length > 0 ? (
+          <div className="overflow-hidden rounded-lg border border-border">
+            <div className="hidden grid-cols-[1.4fr_1fr_0.8fr_0.8fr_9rem] gap-4 bg-muted/60 px-4 py-3 text-xs font-semibold uppercase text-muted-foreground lg:grid">
+              <span>Candidato</span>
+              <span>Puesto</span>
+              <span>Estado</span>
+              <span>Score</span>
+              <span>Accion</span>
+            </div>
+            <div className="divide-y divide-border">
+              {filtered.map((interview) => (
+                <article key={interview.id} className="grid gap-4 bg-card px-4 py-4 lg:grid-cols-[1.4fr_1fr_0.8fr_0.8fr_9rem] lg:items-center">
+                  <div>
+                    <p className="font-medium">{interview.candidate_name}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{interview.candidate_email ?? "Sin correo"} - {formatDateTime(interview.created_at)}</p>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{interview.job_title}</p>
+                  <div><InterviewStatusBadge status={interview.status} /></div>
+                  <div>
+                    <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{interview.final_score} / {interview.max_score}</span>
+                      <span>{interviewPercentage(interview)}%</span>
+                    </div>
+                    <Progress value={interviewPercentage(interview)} />
+                  </div>
+                  <Button asChild size="sm">
+                    <Link href={`/dashboard/interviews/${interview.id}/report`}>Ver reporte</Link>
+                  </Button>
+                </article>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </section>
+    </AppLayout>
+  );
+}

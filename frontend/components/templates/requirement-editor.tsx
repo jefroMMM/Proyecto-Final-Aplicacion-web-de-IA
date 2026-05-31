@@ -1,8 +1,9 @@
 import { FormEvent, useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { TemplateRequirement } from "@/types/api";
 
@@ -32,30 +33,49 @@ export function RequirementEditor({
 
   return (
     <div className="space-y-4">
-      <form onSubmit={handleCreate} className="space-y-2">
-        <Input
-          required
-          placeholder="Skill"
-          value={form.skill_name}
-          onChange={(event) => setForm((prev) => ({ ...prev, skill_name: event.target.value }))}
-        />
-        <Textarea
-          placeholder="Descripcion"
-          value={form.description}
-          onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-        />
-        <Input
-          type="number"
-          min={0}
-          step={0.1}
-          placeholder="Weight"
-          value={form.weight}
-          onChange={(event) => setForm((prev) => ({ ...prev, weight: event.target.value }))}
-        />
-        <Button type="submit" className="w-full">Agregar requisito</Button>
+      <form onSubmit={handleCreate} className="admin-muted-panel grid gap-3 p-4">
+        <div className="grid gap-3 md:grid-cols-[1fr_7rem]">
+          <div className="grid gap-2">
+            <Label htmlFor="skill_name">Skill</Label>
+            <Input
+              id="skill_name"
+              required
+              placeholder="PostgreSQL"
+              value={form.skill_name}
+              onChange={(event) => setForm((prev) => ({ ...prev, skill_name: event.target.value }))}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="weight">Peso</Label>
+            <Input
+              id="weight"
+              type="number"
+              min={0}
+              step={0.1}
+              value={form.weight}
+              onChange={(event) => setForm((prev) => ({ ...prev, weight: event.target.value }))}
+            />
+          </div>
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="requirement_description">Descripcion</Label>
+          <Textarea
+            id="requirement_description"
+            placeholder="Criterio observable para evaluar esta skill"
+            value={form.description}
+            onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+          />
+        </div>
+        <Button type="submit" variant="secondary">
+          <Plus className="mr-2 h-4 w-4" />
+          Agregar requisito
+        </Button>
       </form>
 
       <div className="space-y-2">
+        {requirements.length === 0 ? (
+          <p className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">Aun no hay requisitos.</p>
+        ) : null}
         {requirements.map((requirement) => (
           <RequirementRow
             key={requirement.id}
@@ -98,16 +118,22 @@ function RequirementRow({
 
   if (!isEditing) {
     return (
-      <div className="rounded-md border border-border bg-muted/15 p-3">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="font-medium">{requirement.skill_name}</p>
-            <p className="text-xs text-muted-foreground">Peso {requirement.weight}</p>
-            {requirement.description ? <p className="mt-1 text-sm text-muted-foreground">{requirement.description}</p> : null}
+      <div className="rounded-md border border-border bg-card p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-medium">{requirement.skill_name}</p>
+              <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">Peso {requirement.weight}</span>
+            </div>
+            {requirement.description ? <p className="mt-2 text-sm leading-5 text-muted-foreground">{requirement.description}</p> : null}
           </div>
-          <div className="flex gap-1">
-            <Button size="icon" variant="ghost" onClick={onStartEditing}><Pencil className="h-4 w-4" /></Button>
-            <Button size="icon" variant="ghost" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button>
+          <div className="flex shrink-0 gap-1">
+            <Button size="icon" variant="ghost" onClick={onStartEditing} aria-label={`Editar ${requirement.skill_name}`}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button size="icon" variant="ghost" onClick={onDelete} aria-label={`Eliminar ${requirement.skill_name}`}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </div>
@@ -115,7 +141,7 @@ function RequirementRow({
   }
 
   return (
-    <div className="space-y-2 rounded-md border border-primary/40 bg-primary/5 p-3">
+    <div className="space-y-3 rounded-md border border-primary/40 bg-primary/5 p-3">
       <Input value={draft.skill_name} onChange={(event) => setDraft((prev) => ({ ...prev, skill_name: event.target.value }))} />
       <Textarea value={draft.description} onChange={(event) => setDraft((prev) => ({ ...prev, description: event.target.value }))} />
       <Input type="number" min={0} step={0.1} value={draft.weight} onChange={(event) => setDraft((prev) => ({ ...prev, weight: event.target.value }))} />

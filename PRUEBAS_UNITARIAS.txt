@@ -1,0 +1,413 @@
+PRUEBAS UNITARIAS Y DE VERIFICACION DEL PROYECTO
+================================================
+
+Objetivo
+--------
+Este archivo lista las pruebas recomendadas para validar que el sistema funcione correctamente despues de cambios en backend, frontend, SMTP, entrevistas, plantillas y reportes.
+
+
+1. Validaciones generales
+------------------------
+
+1.1 Estado de contenedores
+Comando:
+  docker compose ps
+
+Resultado esperado:
+  - interviewer-postgres: Up / healthy
+  - interviewer-backend: Up
+  - interviewer-frontend: Up
+  - Frontend disponible en http://localhost:3000
+  - Backend disponible en http://localhost:8000
+
+1.2 Health check backend
+Comando:
+  Invoke-WebRequest -UseBasicParsing http://localhost:8000/health
+
+Resultado esperado:
+  {"status":"ok","service":"backend"}
+
+1.3 Documentacion API
+URL:
+  http://localhost:8000/docs
+
+Resultado esperado:
+  Swagger carga correctamente y muestra rutas de health, templates, interviews, reports, upload, entrevista y audio.
+
+
+2. Pruebas frontend
+-------------------
+
+2.1 Typecheck
+Comando:
+  cd frontend
+  npm run typecheck
+
+Resultado esperado:
+  Termina sin errores.
+
+2.2 Lint
+Comando:
+  cd frontend
+  npm run lint
+
+Resultado esperado:
+  Termina sin errores.
+
+2.3 Build de produccion
+Comando:
+  cd frontend
+  npm run build
+
+Resultado esperado:
+  Compila correctamente y lista las rutas:
+  - /dashboard
+  - /dashboard/templates
+  - /dashboard/templates/new
+  - /dashboard/templates/[templateId]
+  - /dashboard/interviews
+  - /dashboard/interviews/new
+  - /dashboard/interviews/[interviewId]/report
+  - /dashboard/reports
+  - /entrevista
+  - /reports/[id]
+
+2.4 Render de vistas admin
+URLs:
+  http://localhost:3000/dashboard
+  http://localhost:3000/dashboard/templates
+  http://localhost:3000/dashboard/templates/new
+  http://localhost:3000/dashboard/interviews
+  http://localhost:3000/dashboard/interviews/new
+  http://localhost:3000/dashboard/reports
+
+Resultado esperado:
+  - Todas cargan sin pantalla blanca.
+  - No hay errores visibles.
+  - Los botones y links principales aparecen.
+  - La navegacion lateral marca solo una seccion activa.
+
+2.5 Vista del candidato
+URL:
+  http://localhost:3000/entrevista
+
+Resultado esperado:
+  - Carga la pantalla de token.
+  - No debe haber cambios visuales inesperados en esta vista.
+
+
+3. Pruebas backend Python
+-------------------------
+
+3.1 Compilacion de modulos principales
+Comando:
+  python -m compileall backend\app
+
+Resultado esperado:
+  Todos los archivos Python compilan sin errores de sintaxis.
+
+3.2 Configuracion SMTP cargada
+Comando:
+  python -c "import sys; sys.path.insert(0, 'backend'); from app.services.email_service import smtp_configured; print(smtp_configured())"
+
+Resultado esperado:
+  True
+
+3.3 Login SMTP sin enviar correo
+Comando:
+  python - <<PY
+  from pathlib import Path
+  import smtplib
+
+  env = {}
+  for line in Path('.env').read_text(encoding='utf-8').splitlines():
+      line = line.strip()
+      if not line or line.startswith('#') or '=' not in line:
+          continue
+      key, value = line.split('=', 1)
+      env[key] = value.strip()
+
+  host = env['SMTP_HOST']
+  port = int(env.get('SMTP_PORT', '587'))
+  username = env['SMTP_USERNAME']
+  password = env['SMTP_PASSWORD']
+  if host.lower() == 'smtp.gmail.com' and username.lower().endswith('@gmail.com'):
+      password = password.replace(' ', '')
+
+  encryption = env.get('SMTP_ENCRYPTION', 'tls').lower()
+  server = smtplib.SMTP_SSL(host, port, timeout=20) if encryption == 'ssl' else smtplib.SMTP(host, port, timeout=20)
+  try:
+      server.ehlo()
+      if encryption == 'tls':
+          server.starttls()
+          server.ehlo()
+      server.login(username, password)
+      print('SMTP login OK')
+  finally:
+      server.quit()
+  PY
+
+Resultado esperado:
+  SMTP login OK
+
+
+4. Pruebas unitarias sugeridas para backend
+-------------------------------------------
+
+4.1 email_service.smtp_configured
+Caso:
+  - SMTP_HOST, SMTP_USERNAME y SMTP_PASSWORD tienen valores.
+Resultado esperado:
+  - Retorna True.
+
+Caso:
+  - Falta SMTP_PASSWORD.
+Resultado esperado:
+  - Retorna False.
+
+4.2 email_service._smtp_password
+Caso:
+  - Host smtp.gmail.com, username Gmail y password con espacios.
+Resultado esperado:
+  - Retorna password sin espacios.
+
+Caso:
+  - Host distinto a Gmail.
+Resultado esperado:
+  - Retorna password con strip, sin modificar espacios internos.
+
+4.3 email_service.send_candidate_interview_email
+Caso:
+  - SMTP no configurado.
+Resultado esperado:
+  - Retorna False y no intenta enviar.
+
+Caso:
+  - SMTPAuthenticationError.
+Resultado esperado:
+  - Retorna False.
+
+Caso:
+  - SMTPException.
+Resultado esperado:
+  - Retorna False.
+
+Caso:
+  - Envio exitoso.
+Resultado esperado:
+  - Retorna True.
+
+4.4 Repositorios de entrevistas
+Casos:
+  - Crear entrevista con candidato y plantilla.
+  - Listar entrevistas.
+  - Obtener detalle por ID.
+  - Actualizar estado a in_progress.
+  - Actualizar estado a completed.
+
+Resultado esperado:
+  - Los datos se guardan y recuperan correctamente.
+  - No se pierden candidate_email, token ni scores.
+
+4.5 Repositorios de plantillas
+Casos:
+  - Crear plantilla.
+  - Agregar requisito.
+  - Agregar pregunta.
+  - Editar datos generales.
+  - Eliminar pregunta.
+  - Eliminar requisito.
+
+Resultado esperado:
+  - La plantilla conserva relaciones correctas entre requisitos y preguntas.
+
+4.6 Servicio de entrevista desde plantilla
+Casos:
+  - Crear entrevista desde template.
+  - Subir CV.
+  - Analizar CV.
+  - Generar token para candidato.
+  - Enviar invitacion.
+
+Resultado esperado:
+  - Se genera candidate_access_token.
+  - Se genera candidate_interview_url.
+  - candidate_email_sent refleja correctamente si SMTP envio el correo.
+
+4.7 Servicio de entrevista del candidato
+Casos:
+  - Validar token correcto.
+  - Rechazar token incorrecto.
+  - Obtener preguntas por entrevista y token.
+  - Enviar respuesta de voz simulada.
+  - Finalizar entrevista.
+
+Resultado esperado:
+  - Token invalido no permite acceder.
+  - Token valido retorna entrevista y preguntas.
+  - Al finalizar se genera resultado final.
+
+
+5. Pruebas unitarias sugeridas para frontend
+--------------------------------------------
+
+5.1 Componentes admin
+Componentes:
+  - PageHeader
+  - SearchBox
+  - StatCard
+  - InterviewStatusBadge
+  - RecommendationBadge
+
+Casos:
+  - Renderizan con props minimas.
+  - Renderizan acciones cuando existen.
+  - SearchBox llama onChange.
+  - Badges muestran texto correcto para status y recomendacion.
+
+5.2 Layout admin
+Componentes:
+  - AppLayout
+  - Sidebar
+
+Casos:
+  - Renderiza header y sidebar.
+  - Marca activo Panel en /dashboard.
+  - Marca activo Plantillas en /dashboard/templates.
+  - Marca activo Entrevistas en /dashboard/interviews.
+  - Marca activo Reportes en /dashboard/reports.
+  - En mobile abre y cierra menu.
+
+5.3 Pagina dashboard
+Casos:
+  - Muestra metricas con lista vacia.
+  - Muestra metricas con entrevistas.
+  - Filtra por creadas, en curso y completadas.
+  - Busqueda filtra por candidato y puesto.
+
+5.4 Pagina plantillas
+Casos:
+  - Muestra estado vacio.
+  - Muestra tarjetas de plantillas.
+  - Busca por titulo, puesto y descripcion.
+  - Boton crear plantilla navega a /dashboard/templates/new.
+
+5.5 Pagina nueva plantilla
+Casos:
+  - Boton guardar esta deshabilitado sin titulo, puesto y descripcion.
+  - Agregar requisito actualiza contador.
+  - Eliminar requisito actualiza contador.
+  - Agregar pregunta actualiza contador.
+  - Eliminar pregunta actualiza contador.
+  - Guardar llama createTemplate, addRequirement y addQuestion.
+
+5.6 Pagina entrevistas
+Casos:
+  - Muestra entrevistas desde API.
+  - Filtros funcionan.
+  - Busqueda funciona por candidato, correo o puesto.
+  - Link de reporte apunta a /dashboard/interviews/{id}/report.
+
+5.7 Pagina nueva entrevista
+Casos:
+  - Carga plantillas.
+  - Boton enviar esta deshabilitado sin plantilla, candidato, email y CV.
+  - Seleccionar CV muestra nombre del archivo.
+  - Crear entrevista ejecuta createInterviewFromTemplate, uploadInterviewCv, analyzeInterviewCv y sendCandidateInvite.
+  - Si SMTP envio correo muestra estado de exito.
+  - Si SMTP no envio correo muestra enlace para copiar.
+
+5.8 Pagina reportes
+Casos:
+  - Lista solo entrevistas completadas o con score mayor a 0.
+  - Muestra score final y progreso.
+  - Busqueda filtra por candidato, correo o puesto.
+  - Boton Ver reporte navega al detalle.
+
+5.9 Panel de reporte
+Componente:
+  - ReportPanel
+
+Casos:
+  - Muestra nombre, puesto, plantilla y recomendacion.
+  - Muestra score final, porcentaje, preguntas y bonus.
+  - Muestra skills detectadas y faltantes.
+  - Muestra fortalezas y areas de mejora.
+  - Muestra evaluaciones de respuestas.
+  - Maneja listas vacias sin romper UI.
+
+
+6. Pruebas de integracion manual
+--------------------------------
+
+6.1 Crear plantilla
+Pasos:
+  1. Abrir http://localhost:3000/dashboard/templates/new
+  2. Completar titulo, puesto y descripcion.
+  3. Agregar al menos 2 requisitos.
+  4. Agregar al menos 2 preguntas.
+  5. Guardar plantilla.
+
+Resultado esperado:
+  - Redirige a detalle de plantilla.
+  - La plantilla aparece en /dashboard/templates.
+
+6.2 Crear entrevista
+Pasos:
+  1. Abrir http://localhost:3000/dashboard/interviews/new
+  2. Seleccionar plantilla.
+  3. Escribir nombre y correo del candidato.
+  4. Subir CV PDF.
+  5. Crear y enviar acceso.
+
+Resultado esperado:
+  - Se crea entrevista.
+  - Se analiza CV.
+  - Se genera token y enlace.
+  - Se intenta enviar correo por SMTP.
+
+6.3 Acceso candidato
+Pasos:
+  1. Copiar enlace generado.
+  2. Abrir enlace en navegador.
+  3. Validar token.
+
+Resultado esperado:
+  - Carga bienvenida del candidato.
+  - Muestra preguntas disponibles.
+
+6.4 Reporte
+Pasos:
+  1. Completar entrevista.
+  2. Abrir http://localhost:3000/dashboard/reports
+  3. Entrar al reporte del candidato.
+
+Resultado esperado:
+  - Muestra score, recomendacion, skills, fortalezas, areas de mejora y respuestas evaluadas.
+
+
+7. Comandos finales recomendados antes de entregar
+--------------------------------------------------
+
+Backend:
+  python -m compileall backend\app
+
+Frontend:
+  cd frontend
+  npm run typecheck
+  npm run lint
+  npm run build
+
+Docker:
+  docker compose up -d --build
+  docker compose ps
+
+URLs finales:
+  http://localhost:3000
+  http://localhost:3000/dashboard
+  http://localhost:3000/dashboard/templates
+  http://localhost:3000/dashboard/interviews
+  http://localhost:3000/dashboard/interviews/new
+  http://localhost:3000/dashboard/reports
+  http://localhost:8000/health
+  http://localhost:8000/docs

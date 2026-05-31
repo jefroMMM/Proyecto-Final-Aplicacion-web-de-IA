@@ -5,13 +5,14 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
+import { PageHeader } from "@/components/admin/page-header";
+import { RecommendationBadge } from "@/components/admin/status-badge";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { AppLayout } from "@/components/layout/app-layout";
 import { RadarChart } from "@/components/reports/radar-chart";
 import { ScoreCard } from "@/components/reports/score-card";
 import { SkillBadge } from "@/components/reports/skill-badge";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getReport } from "@/lib/services/reports";
@@ -78,8 +79,8 @@ export default function ReportPage() {
         <EmptyState
           title="Reporte no disponible"
           description={error ?? "Finaliza la entrevista para generar el reporte."}
-          actionHref={`/interviews/${interviewId}`}
-          actionLabel="Abrir entrevista"
+          actionHref="/dashboard/reports"
+          actionLabel="Volver a reportes"
         />
       </AppLayout>
     );
@@ -87,19 +88,22 @@ export default function ReportPage() {
 
   return (
     <AppLayout>
-      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
+      <PageHeader
+        eyebrow="Reporte final"
+        title={String(structured.candidate_name ?? "Candidato")}
+        description={summary}
+        actions={
           <Button asChild variant="ghost" className="mb-3 px-0">
-            <Link href={`/interviews/${interviewId}`}>
+            <Link href="/dashboard/reports">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Volver
+              Volver a reportes
             </Link>
           </Button>
-          <p className="text-sm text-primary">Reporte final</p>
-          <h1 className="mt-1 text-3xl font-semibold">{String(structured.candidate_name ?? "Candidato")}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">{summary}</p>
-        </div>
-        <Badge variant="success">{recommendation}</Badge>
+        }
+      />
+
+      <div className="mb-6">
+        <RecommendationBadge recommendation={recommendation} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -111,10 +115,10 @@ export default function ReportPage() {
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
         <Card className="glass-panel">
-          <CardHeader>
+          <CardHeader className="border-b border-border">
             <CardTitle>Radar</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-5">
             <RadarChart
               technicalScore={technicalScore}
               communicationScore={communicationScore}
@@ -125,10 +129,10 @@ export default function ReportPage() {
         </Card>
 
         <Card className="glass-panel">
-          <CardHeader>
+          <CardHeader className="border-b border-border">
             <CardTitle>Skills detectadas</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-5">
             <div className="flex flex-wrap gap-2">
               {detectedSkills.map((skill) => <SkillBadge key={skill} skill={skill} />)}
             </div>
@@ -138,14 +142,14 @@ export default function ReportPage() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Card className="glass-panel">
-          <CardHeader><CardTitle>Fortalezas</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
+          <CardHeader className="border-b border-border"><CardTitle>Fortalezas</CardTitle></CardHeader>
+          <CardContent className="space-y-2 pt-5">
             {strengths.map((item) => <p key={item} className="rounded-md bg-muted/25 p-2 text-sm">{item}</p>)}
           </CardContent>
         </Card>
         <Card className="glass-panel">
-          <CardHeader><CardTitle>Areas de mejora</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
+          <CardHeader className="border-b border-border"><CardTitle>Areas de mejora</CardTitle></CardHeader>
+          <CardContent className="space-y-2 pt-5">
             {weaknesses.map((item) => <p key={item} className="rounded-md bg-muted/25 p-2 text-sm">{item}</p>)}
           </CardContent>
         </Card>
