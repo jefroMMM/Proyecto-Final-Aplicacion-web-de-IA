@@ -26,6 +26,7 @@ from app.schemas.candidate_interview import (
 )
 
 TOKEN_TTL_HOURS = 72
+AGENT_QUESTION_LIMIT = 1
 STOPWORDS = {
     "para",
     "como",
@@ -128,7 +129,10 @@ async def submit_voice_answer(
         session,
         template_id=interview.template.id,
         already_answered_question_ids=answered_ids,
+        interview_id=interview.id,
     )
+    if not question:
+        question = await _ensure_agent_question(session, interview=interview, answered_question_ids=answered_ids)
     if not question:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No pending questions")
 
@@ -168,7 +172,14 @@ async def submit_voice_answer(
         session,
         template_id=interview.template.id,
         already_answered_question_ids={answer.question_id for answer in updated_answers},
+        interview_id=interview.id,
     )
+    if not next_question:
+        next_question = await _ensure_agent_question(
+            session,
+            interview=interview,
+            answered_question_ids={answer.question_id for answer in updated_answers},
+        )
     if next_question:
         await transcript_repository.create_transcript(
             session,
@@ -179,7 +190,7 @@ async def submit_voice_answer(
     else:
         interview.status = "completed"
 
-    total_questions = len(_sorted_questions(interview.template.questions))
+    total_questions = len(_questions_for_interview(interview.template.questions, interview.id))
     await session.commit()
     return CandidateVoiceAnswerResponse(
         interview_id=interview.id,
@@ -207,7 +218,7 @@ async def finalize_candidate_interview(
     interview = await _require_interview_detail(session, interview_id)
     answers = await answer_repository.list_answers(session, interview_id)
     answer_by_question = {answer.question_id: answer for answer in answers}
-    questions = _sorted_questions(interview.template.questions if interview.template else [])
+    questions = _questions_for_interview(interview.template.questions if interview.template else [], interview.id)
     if len(answers) < len(questions):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -242,6 +253,7 @@ async def finalize_candidate_interview(
             CandidateFinalResultQuestion(
                 question=question.question_text,
                 expected_answer=question.expected_answer,
+                source=question.source,
                 candidate_answer=answer_by_question[question.id].transcript_text,
                 score=float(answer_by_question[question.id].final_question_score),
                 max_score=float(question.points),
@@ -404,10 +416,76 @@ def _sorted_questions(questions: list[TemplateQuestion]) -> list[TemplateQuestio
     return sorted(questions, key=lambda item: (item.order_index, item.created_at))
 
 
+def _questions_for_interview(questions: list[TemplateQuestion], interview_id: uuid.UUID) -> list[TemplateQuestion]:
+    return _sorted_questions(
+        [
+            question
+            for question in questions
+            if question.generated_for_interview_id is None or question.generated_for_interview_id == interview_id
+        ]
+    )
+
+
+async def _ensure_agent_question(
+    session: AsyncSession,
+    *,
+    interview,
+    answered_question_ids: set[uuid.UUID],
+) -> TemplateQuestion | None:
+    questions = _questions_for_interview(interview.template.questions, interview.id)
+    pending = [question for question in questions if question.id not in answered_question_ids]
+    if pending:
+        return pending[0]
+
+    agent_questions = [question for question in questions if question.source == "agent"]
+    if len(agent_questions) >= AGENT_QUESTION_LIMIT:
+        return None
+
+    template_questions = [question for question in questions if question.source != "agent"]
+    if len(answered_question_ids) < len(template_questions):
+        return None
+
+    skill_matches = await match_repository.list_skill_matches(session, interview.id)
+    target_match = next((item for item in skill_matches if not item.matched), None)
+    target_requirement = None
+    if target_match:
+        target_requirement = next(
+            (requirement for requirement in interview.template.requirements if requirement.id == target_match.requirement_id),
+            None,
+        )
+    if target_requirement is None and interview.template.requirements:
+        target_requirement = interview.template.requirements[0]
+
+    role_name = interview.template.role_name
+    skill_name = target_requirement.skill_name if target_requirement else role_name
+    question_text = (
+        f"Pregunta generada por el agente: describe una situacion practica donde aplicaste {skill_name} "
+        f"en un puesto de {role_name} y explica el resultado."
+    )
+    expected_answer = (
+        f"Debe explicar una experiencia concreta usando {skill_name}, mencionar acciones realizadas, "
+        "herramientas o criterios aplicados y el resultado obtenido."
+    )
+    order_index = max((question.order_index for question in questions), default=-1) + 1
+    question = await answer_repository.create_agent_question(
+        session,
+        template_id=interview.template.id,
+        interview_id=interview.id,
+        requirement_id=target_requirement.id if target_requirement else None,
+        question_text=question_text,
+        expected_answer=expected_answer,
+        order_index=order_index,
+    )
+    interview.template.questions.append(question)
+    interview.max_score = _decimal(interview.max_score) + Decimal("1")
+    return question
+
+
 def _question_read(question: TemplateQuestion) -> CandidateQuestionRead:
     return CandidateQuestionRead(
         id=question.id,
         question_text=question.question_text,
+        source=question.source,
         difficulty=question.difficulty,
         order_index=question.order_index,
         points=float(question.points),

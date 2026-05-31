@@ -1,6 +1,8 @@
 import json
 import logging
+import re
 import uuid
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from fastapi import HTTPException, UploadFile, status
@@ -135,6 +137,7 @@ async def analyze_cv_against_template(
         requirements=[item.skill_name for item in requirements],
     )
     match_by_skill = {item["skill_name"].lower(): item for item in raw_matches}
+    normalized_cv_text = _normalize_match_text(cv_document.content_text)
 
     db_matches: list[CandidateSkillMatch] = []
     initial_score = Decimal("0")
@@ -142,6 +145,16 @@ async def analyze_cv_against_template(
         matched_payload = match_by_skill.get(requirement.skill_name.lower(), {})
         matched = bool(matched_payload.get("matched", False))
         evidence = str(matched_payload.get("evidence_text", "")).strip()
+        deterministic_evidence = _find_requirement_evidence(
+            cv_text=cv_document.content_text,
+            normalized_cv_text=normalized_cv_text,
+            requirement_name=requirement.skill_name,
+            requirement_description=requirement.description,
+        )
+        if deterministic_evidence:
+            matched = True
+            if not evidence:
+                evidence = deterministic_evidence
         score_awarded = Decimal("0.5") if matched else Decimal("0")
         initial_score += score_awarded
         db_matches.append(
@@ -163,6 +176,9 @@ async def analyze_cv_against_template(
     interview.initial_cv_score = initial_score
     interview.max_score = _to_decimal(calculate_template_max_score(interview.template))
     _refresh_interview_totals(interview)
+    if interview.report:
+        answers = await answer_repository.list_answers(session, interview.id)
+        _refresh_report_scores_from_interview(interview, answers, db_matches)
     await session.commit()
     persisted_matches = await match_repository.list_skill_matches(session, interview.id)
     logger.info(
@@ -188,6 +204,7 @@ async def start_template_interview(
         session,
         template_id=interview.template_id,
         already_answered_question_ids=set(),
+        interview_id=interview.id,
     )
     if not first_question:
         raise HTTPException(status_code=409, detail="Template has no questions")
@@ -216,6 +233,7 @@ async def submit_text_answer(
         session,
         template_id=interview.template_id,
         already_answered_question_ids=answered_ids,
+        interview_id=interview.id,
     )
     if not current_question:
         raise HTTPException(status_code=409, detail="No pending questions")
@@ -290,6 +308,7 @@ async def submit_text_answer(
         session,
         template_id=interview.template_id,
         already_answered_question_ids={item.question_id for item in updated_answers},
+        interview_id=interview.id,
     )
     total_questions = len(interview.template.questions)
     if next_question:
@@ -373,6 +392,7 @@ async def finalize_interview(session: AsyncSession, interview_id: uuid.UUID):
         "template_title": interview.template.title,
         "detected_cv_skills": detected,
         "missing_cv_skills": missing,
+        "cv_requirement_matches": [serialize_skill_match(item) for item in skill_matches],
         "questions_answered": len(answers),
         "answer_evaluations": [serialize_answer(item) for item in answers],
         "initial_cv_score": float(interview.initial_cv_score),
@@ -409,7 +429,48 @@ async def get_final_report(session: AsyncSession, interview_id: uuid.UUID):
     interview = await _require_interview_with_template(session, interview_id)
     if not interview.report:
         return await finalize_interview(session, interview_id)
+    payload = dict(interview.report.report_json or {})
+    if "cv_requirement_matches" not in payload or any(
+        "question_text" not in item for item in payload.get("answer_evaluations", [])
+    ):
+        answers = await answer_repository.list_answers(session, interview.id)
+        skill_matches = await match_repository.list_skill_matches(session, interview.id)
+        _refresh_report_scores_from_interview(interview, answers, skill_matches)
+        await session.commit()
     return InterviewFinalReport.model_validate(interview.report.report_json)
+
+
+async def update_answer_final_score(
+    session: AsyncSession,
+    *,
+    interview_id: uuid.UUID,
+    answer_id: uuid.UUID,
+    final_question_score: float,
+):
+    interview = await _require_interview_with_template(session, interview_id)
+    answer = await answer_repository.get_answer(session, answer_id)
+    if not answer or answer.interview_id != interview.id:
+        raise HTTPException(status_code=404, detail="Interview answer not found")
+
+    max_allowed = _to_decimal(answer.question.points) + _to_decimal(answer.bonus_score)
+    requested_score = _to_decimal(final_question_score)
+    if requested_score > max_allowed:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Final score cannot exceed {float(max_allowed)} for this question",
+        )
+
+    answer.manual_question_score = requested_score
+    answer.final_question_score = requested_score
+    answers = await _recalculate_interview_scores(session, interview)
+
+    if interview.report:
+        skill_matches = await match_repository.list_skill_matches(session, interview.id)
+        _refresh_report_scores_from_interview(interview, answers, skill_matches)
+
+    await session.commit()
+    refreshed = await answer_repository.get_answer(session, answer_id)
+    return serialize_answer(refreshed)
 
 
 async def _require_interview_with_template(session: AsyncSession, interview_id: uuid.UUID):
@@ -435,6 +496,90 @@ def _refresh_interview_totals(interview) -> None:
     interview.final_score = _to_decimal(interview.initial_cv_score) + _to_decimal(
         interview.question_score
     ) + _to_decimal(interview.bonus_score)
+
+
+async def _recalculate_interview_scores(session: AsyncSession, interview):
+    answers = await answer_repository.list_answers(session, interview.id)
+    bonus_total = sum((_to_decimal(answer.bonus_score) for answer in answers), Decimal("0"))
+    question_total = sum(
+        (max(_to_decimal(answer.final_question_score) - _to_decimal(answer.bonus_score), Decimal("0")) for answer in answers),
+        Decimal("0"),
+    )
+    interview.question_score = question_total
+    interview.bonus_score = bonus_total
+    _refresh_interview_totals(interview)
+    return answers
+
+
+def _refresh_report_scores_from_interview(interview, answers, skill_matches=None) -> None:
+    skill_matches = list(skill_matches or [])
+    detected = [item.skill_name for item in skill_matches if item.matched]
+    missing = [item.skill_name for item in skill_matches if not item.matched]
+    percentage = (
+        round((float(interview.final_score) / float(interview.max_score)) * 100, 2)
+        if float(interview.max_score) > 0
+        else 0
+    )
+    payload = dict(interview.report.report_json or {})
+    payload["answer_evaluations"] = [serialize_answer(answer) for answer in answers]
+    if skill_matches:
+        payload["detected_cv_skills"] = detected
+        payload["missing_cv_skills"] = missing
+        payload["cv_requirement_matches"] = [serialize_skill_match(item) for item in skill_matches]
+    payload["initial_cv_score"] = float(interview.initial_cv_score)
+    payload["question_score"] = float(interview.question_score)
+    payload["bonus_score"] = float(interview.bonus_score)
+    payload["final_score"] = float(interview.final_score)
+    payload["max_score"] = float(interview.max_score)
+    payload["percentage"] = percentage
+    interview.report.report_json = payload
+    interview.report.final_score = float(interview.final_score)
+    interview.report.max_score = float(interview.max_score)
+    interview.report.percentage = percentage
+    interview.report.technical_score = int(min(percentage, 100))
+
+
+def _normalize_match_text(value: str) -> str:
+    value = value.lower()
+    replacements = {
+        "á": "a",
+        "é": "e",
+        "í": "i",
+        "ó": "o",
+        "ú": "u",
+        "ü": "u",
+        "ñ": "n",
+    }
+    for source, target in replacements.items():
+        value = value.replace(source, target)
+    return re.sub(r"\s+", " ", value)
+
+
+def _find_requirement_evidence(
+    *,
+    cv_text: str,
+    normalized_cv_text: str,
+    requirement_name: str,
+    requirement_description: str,
+) -> str:
+    terms = [requirement_name, *re.split(r"[,;/()]+", requirement_description)]
+    normalized_terms = {
+        _normalize_match_text(term).strip()
+        for term in terms
+        if len(_normalize_match_text(term).strip()) >= 3
+    }
+    for term in sorted(normalized_terms, key=len, reverse=True):
+        if re.search(rf"\b{re.escape(term)}\b", normalized_cv_text):
+            return _extract_evidence_excerpt(cv_text, term)
+    return ""
+
+
+def _extract_evidence_excerpt(cv_text: str, normalized_term: str) -> str:
+    lines = [line.strip() for line in cv_text.splitlines() if line.strip()]
+    for line in lines:
+        if normalized_term in _normalize_match_text(line):
+            return line[:500]
+    return f"El CV menciona {normalized_term}."
 
 
 def _progress_percentage(question_index: int, total_questions: int) -> float:
@@ -650,12 +795,30 @@ def serialize_answer(answer) -> dict:
         "id": str(answer.id),
         "interview_id": str(answer.interview_id),
         "question_id": str(answer.question_id),
+        "question_points": float(answer.question.points) if answer.question else 0,
+        "question_text": answer.question.question_text if answer.question else "",
+        "question_source": answer.question.source if answer.question else "template",
         "transcript_text": answer.transcript_text,
         "evaluation_status": answer.evaluation_status,
         "base_question_score": float(answer.base_question_score),
         "bonus_score": float(answer.bonus_score),
+        "ai_question_score": float(answer.ai_question_score),
+        "manual_question_score": float(answer.manual_question_score) if answer.manual_question_score is not None else None,
         "final_question_score": float(answer.final_question_score),
         "feedback": answer.feedback,
         "reason": answer.reason,
         "created_at": answer.created_at.isoformat(),
+    }
+
+
+def serialize_skill_match(match) -> dict:
+    return {
+        "id": str(match.id),
+        "interview_id": str(match.interview_id),
+        "requirement_id": str(match.requirement_id),
+        "skill_name": match.skill_name,
+        "matched": match.matched,
+        "evidence_text": match.evidence_text,
+        "score_awarded": float(match.score_awarded),
+        "created_at": (match.created_at or datetime.now(timezone.utc)).isoformat(),
     }

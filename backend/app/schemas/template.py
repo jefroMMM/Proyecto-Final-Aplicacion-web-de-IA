@@ -65,8 +65,10 @@ class TemplateQuestionRead(BaseModel):
     id: uuid.UUID
     template_id: uuid.UUID
     requirement_id: uuid.UUID | None
+    generated_for_interview_id: uuid.UUID | None = None
     question_text: str
     expected_answer: str
+    source: str = "template"
     difficulty: DifficultyLevel
     points: float
     is_required: bool
@@ -136,14 +138,23 @@ class InterviewAnswerRead(BaseModel):
     id: uuid.UUID
     interview_id: uuid.UUID
     question_id: uuid.UUID
+    question_points: float = 0
+    question_text: str = ""
+    question_source: str = "template"
     transcript_text: str
     evaluation_status: EvaluationStatus
     base_question_score: float
     bonus_score: float
+    ai_question_score: float = 0
+    manual_question_score: float | None = None
     final_question_score: float
     feedback: str
     reason: str
     created_at: datetime
+
+
+class InterviewAnswerScoreUpdate(BaseModel):
+    final_question_score: float = Field(ge=0, le=100)
 
 
 class InterviewCreateV2(BaseModel):
@@ -230,6 +241,7 @@ class InterviewFinalReport(BaseModel):
     template_title: str
     detected_cv_skills: list[str]
     missing_cv_skills: list[str]
+    cv_requirement_matches: list[CandidateSkillMatchRead] = Field(default_factory=list)
     questions_answered: int
     answer_evaluations: list[InterviewAnswerRead]
     initial_cv_score: float

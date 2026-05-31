@@ -38,6 +38,8 @@ class InterviewAnswer(Base):
     evaluation_status: Mapped[str] = mapped_column(nullable=False)
     base_question_score: Mapped[float] = mapped_column(Numeric(10, 2), default=0, nullable=False)
     bonus_score: Mapped[float] = mapped_column(Numeric(10, 2), default=0, nullable=False)
+    ai_question_score: Mapped[float] = mapped_column(Numeric(10, 2), default=0, nullable=False)
+    manual_question_score: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
     final_question_score: Mapped[float] = mapped_column(Numeric(10, 2), default=0, nullable=False)
     feedback: Mapped[str] = mapped_column(Text, default="", nullable=False)
     reason: Mapped[str] = mapped_column(Text, default="", nullable=False)

@@ -34,8 +34,15 @@ class TemplateQuestion(Base):
         index=True,
         nullable=True,
     )
+    generated_for_interview_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("interviews.id", ondelete="CASCADE"),
+        index=True,
+        nullable=True,
+    )
     question_text: Mapped[str] = mapped_column(Text, nullable=False)
     expected_answer: Mapped[str] = mapped_column(Text, nullable=False)
+    source: Mapped[str] = mapped_column(String(20), default="template", nullable=False)
     difficulty: Mapped[str] = mapped_column(String(20), default="medium", nullable=False)
     points: Mapped[float] = mapped_column(Numeric(10, 2), default=1, nullable=False)
     is_required: Mapped[bool] = mapped_column(default=True, nullable=False)

@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -28,6 +28,7 @@ async def create_answer(
         evaluation_status=evaluation_status,
         base_question_score=base_question_score,
         bonus_score=bonus_score,
+        ai_question_score=final_question_score,
         final_question_score=final_question_score,
         feedback=feedback,
         reason=reason,
@@ -50,6 +51,18 @@ async def list_answers(
     return list(result.scalars().all())
 
 
+async def get_answer(
+    session: AsyncSession,
+    answer_id: uuid.UUID,
+) -> InterviewAnswer | None:
+    result = await session.execute(
+        select(InterviewAnswer)
+        .where(InterviewAnswer.id == answer_id)
+        .options(selectinload(InterviewAnswer.question))
+    )
+    return result.scalar_one_or_none()
+
+
 async def count_answers(
     session: AsyncSession,
     interview_id: uuid.UUID,
@@ -65,10 +78,20 @@ async def get_next_question(
     *,
     template_id: uuid.UUID,
     already_answered_question_ids: set[uuid.UUID],
+    interview_id: uuid.UUID | None = None,
 ) -> TemplateQuestion | None:
+    interview_filter = (
+        TemplateQuestion.generated_for_interview_id.is_(None)
+        if interview_id is None
+        else or_(
+            TemplateQuestion.generated_for_interview_id.is_(None),
+            TemplateQuestion.generated_for_interview_id == interview_id,
+        )
+    )
     result = await session.execute(
         select(TemplateQuestion)
         .where(TemplateQuestion.template_id == template_id)
+        .where(interview_filter)
         .options(selectinload(TemplateQuestion.requirement))
         .order_by(TemplateQuestion.order_index.asc(), TemplateQuestion.created_at.asc())
     )
@@ -76,3 +99,30 @@ async def get_next_question(
         if question.id not in already_answered_question_ids:
             return question
     return None
+
+
+async def create_agent_question(
+    session: AsyncSession,
+    *,
+    template_id: uuid.UUID,
+    interview_id: uuid.UUID,
+    requirement_id: uuid.UUID | None,
+    question_text: str,
+    expected_answer: str,
+    order_index: int,
+) -> TemplateQuestion:
+    question = TemplateQuestion(
+        template_id=template_id,
+        generated_for_interview_id=interview_id,
+        requirement_id=requirement_id,
+        question_text=question_text,
+        expected_answer=expected_answer,
+        source="agent",
+        difficulty="medium",
+        points=1,
+        is_required=True,
+        order_index=order_index,
+    )
+    session.add(question)
+    await session.flush()
+    return question

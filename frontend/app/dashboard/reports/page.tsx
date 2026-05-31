@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { averageCompletedScore, formatDateTime, interviewPercentage } from "@/lib/admin-format";
 import { listInterviews } from "@/lib/services/interviews";
@@ -22,6 +23,19 @@ export default function DashboardReportsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [scoreMin, setScoreMin] = useState("");
+  const [scoreMax, setScoreMax] = useState("");
+  const [appliedFilters, setAppliedFilters] = useState({
+    search: "",
+    roleFilter: "",
+    dateFrom: "",
+    dateTo: "",
+    scoreMin: "",
+    scoreMax: "",
+  });
 
   useEffect(() => {
     listInterviews()
@@ -31,10 +45,44 @@ export default function DashboardReportsPage() {
   }, []);
 
   const reportable = useMemo(() => interviews.filter((item) => item.status === "completed" || item.final_score > 0), [interviews]);
+  const roleOptions = useMemo(
+    () => Array.from(new Set(reportable.map((item) => item.job_title).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [reportable],
+  );
   const filtered = useMemo(() => {
-    const term = search.toLowerCase();
-    return reportable.filter((item) => `${item.candidate_name} ${item.job_title} ${item.candidate_email ?? ""}`.toLowerCase().includes(term));
-  }, [reportable, search]);
+    const term = appliedFilters.search.toLowerCase();
+    const minScore = parseOptionalNumber(appliedFilters.scoreMin);
+    const maxScore = parseOptionalNumber(appliedFilters.scoreMax);
+    const fromTime = appliedFilters.dateFrom ? startOfLocalDay(appliedFilters.dateFrom).getTime() : null;
+    const toTime = appliedFilters.dateTo ? endOfLocalDay(appliedFilters.dateTo).getTime() : null;
+
+    return reportable.filter((item) => {
+      const matchesSearch = `${item.candidate_name} ${item.job_title} ${item.candidate_email ?? ""}`.toLowerCase().includes(term);
+      const matchesRole = !appliedFilters.roleFilter || item.job_title === appliedFilters.roleFilter;
+      const itemTime = new Date(item.created_at).getTime();
+      const matchesFrom = fromTime === null || itemTime >= fromTime;
+      const matchesTo = toTime === null || itemTime <= toTime;
+      const matchesMinScore = minScore === null || item.final_score >= minScore;
+      const matchesMaxScore = maxScore === null || item.final_score <= maxScore;
+      return matchesSearch && matchesRole && matchesFrom && matchesTo && matchesMinScore && matchesMaxScore;
+    });
+  }, [appliedFilters, reportable]);
+
+  const hasFilters = Boolean(search || roleFilter || dateFrom || dateTo || scoreMin || scoreMax);
+
+  function applyFilters() {
+    setAppliedFilters({ search, roleFilter, dateFrom, dateTo, scoreMin, scoreMax });
+  }
+
+  function clearFilters() {
+    setSearch("");
+    setRoleFilter("");
+    setDateFrom("");
+    setDateTo("");
+    setScoreMin("");
+    setScoreMax("");
+    setAppliedFilters({ search: "", roleFilter: "", dateFrom: "", dateTo: "", scoreMin: "", scoreMax: "" });
+  }
 
   return (
     <AppLayout>
@@ -51,9 +99,47 @@ export default function DashboardReportsPage() {
       </div>
 
       <section className="admin-panel p-4">
-        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <p className="text-sm text-muted-foreground">{filtered.length} resultados</p>
-          <SearchBox placeholder="Buscar candidato, correo o puesto" value={search} onChange={setSearch} />
+        <div className="mb-4 grid gap-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <p className="text-sm text-muted-foreground">{filtered.length} resultados</p>
+            <SearchBox placeholder="Buscar candidato, correo o puesto" value={search} onChange={setSearch} />
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[1.2fr_1fr_1fr_0.8fr_0.8fr_auto_auto] xl:items-end">
+            <label className="grid gap-1 text-sm font-medium">
+              Puesto
+              <select
+                value={roleFilter}
+                onChange={(event) => setRoleFilter(event.target.value)}
+                className="h-10 rounded-md border border-input bg-white px-3 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">Todos los puestos</option>
+                {roleOptions.map((role) => <option key={role} value={role}>{role}</option>)}
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm font-medium">
+              Desde
+              <Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+            </label>
+            <label className="grid gap-1 text-sm font-medium">
+              Hasta
+              <Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+            </label>
+            <label className="grid gap-1 text-sm font-medium">
+              Puntos min
+              <Input type="number" min={0} step="0.1" value={scoreMin} onChange={(event) => setScoreMin(event.target.value)} placeholder="0" />
+            </label>
+            <label className="grid gap-1 text-sm font-medium">
+              Puntos max
+              <Input type="number" min={0} step="0.1" value={scoreMax} onChange={(event) => setScoreMax(event.target.value)} placeholder="10" />
+            </label>
+            <Button type="button" onClick={applyFilters}>
+              Filtrar
+            </Button>
+            <Button type="button" variant="secondary" onClick={clearFilters} disabled={!hasFilters}>
+              Limpiar
+            </Button>
+          </div>
         </div>
 
         {loading ? <LoadingState label="Cargando reportes" /> : null}
@@ -100,4 +186,18 @@ export default function DashboardReportsPage() {
       </section>
     </AppLayout>
   );
+}
+
+function parseOptionalNumber(value: string) {
+  if (!value.trim()) return null;
+  const parsed = Number(value.replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function startOfLocalDay(value: string) {
+  return new Date(`${value}T00:00:00`);
+}
+
+function endOfLocalDay(value: string) {
+  return new Date(`${value}T23:59:59.999`);
 }

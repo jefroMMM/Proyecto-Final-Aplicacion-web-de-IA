@@ -47,6 +47,34 @@ async def init_db() -> None:
         )
         await connection.execute(
             text(
+                "ALTER TABLE IF EXISTS interview_answers "
+                "ADD COLUMN IF NOT EXISTS ai_question_score numeric(10,2), "
+                "ADD COLUMN IF NOT EXISTS manual_question_score numeric(10,2)"
+            )
+        )
+        await connection.execute(
+            text(
+                "UPDATE interview_answers "
+                "SET ai_question_score = final_question_score "
+                "WHERE ai_question_score IS NULL"
+            )
+        )
+        await connection.execute(
+            text(
+                "ALTER TABLE IF EXISTS interview_answers "
+                "ALTER COLUMN ai_question_score SET DEFAULT 0, "
+                "ALTER COLUMN ai_question_score SET NOT NULL"
+            )
+        )
+        await connection.execute(
+            text(
+                "ALTER TABLE IF EXISTS template_questions "
+                "ADD COLUMN IF NOT EXISTS source varchar(20) DEFAULT 'template' NOT NULL, "
+                "ADD COLUMN IF NOT EXISTS generated_for_interview_id uuid"
+            )
+        )
+        await connection.execute(
+            text(
                 "ALTER TABLE IF EXISTS embeddings_metadata "
                 "ADD COLUMN IF NOT EXISTS embedding vector(1536)"
             )

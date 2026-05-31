@@ -2,7 +2,7 @@ import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, with_loader_criteria
 
 from app.models.interview_template import InterviewTemplate
 from app.models.template_question import TemplateQuestion
@@ -15,6 +15,7 @@ async def list_templates(session: AsyncSession) -> list[InterviewTemplate]:
         .options(
             selectinload(InterviewTemplate.requirements),
             selectinload(InterviewTemplate.questions),
+            with_loader_criteria(TemplateQuestion, TemplateQuestion.generated_for_interview_id.is_(None)),
         )
         .order_by(InterviewTemplate.created_at.desc())
     )
@@ -31,6 +32,7 @@ async def get_template(
         .options(
             selectinload(InterviewTemplate.requirements),
             selectinload(InterviewTemplate.questions),
+            with_loader_criteria(TemplateQuestion, TemplateQuestion.generated_for_interview_id.is_(None)),
         )
     )
     return result.scalar_one_or_none()

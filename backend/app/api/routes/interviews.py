@@ -13,6 +13,8 @@ from app.schemas.template import (
     AnswerRequest,
     AnswerTurnResponse,
     InterviewCreateV2,
+    InterviewAnswerRead,
+    InterviewAnswerScoreUpdate,
     InterviewFinalReport,
     InterviewScoreResponse,
     StartInterviewResponse,
@@ -153,3 +155,18 @@ async def get_template_interview_report(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ):
     return await template_interview_service.get_final_report(session, interview_id)
+
+
+@router.patch("/{interview_id}/answers/{answer_id}/score", response_model=InterviewAnswerRead)
+async def update_template_answer_score(
+    interview_id: uuid.UUID,
+    answer_id: uuid.UUID,
+    payload: InterviewAnswerScoreUpdate,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+):
+    return await template_interview_service.update_answer_final_score(
+        session,
+        interview_id=interview_id,
+        answer_id=answer_id,
+        final_question_score=payload.final_question_score,
+    )

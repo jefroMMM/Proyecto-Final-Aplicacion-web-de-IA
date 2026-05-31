@@ -2,7 +2,7 @@ import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import joinedload, selectinload, with_loader_criteria
 
 from app.models.interview_answer import InterviewAnswer
 from app.models.interview import Interview
@@ -65,6 +65,11 @@ async def get_interview_detail(
             selectinload(Interview.report),
             selectinload(Interview.answers).options(joinedload(InterviewAnswer.question)),
             selectinload(Interview.candidate_skill_matches),
+            with_loader_criteria(
+                TemplateQuestion,
+                (TemplateQuestion.generated_for_interview_id.is_(None))
+                | (TemplateQuestion.generated_for_interview_id == interview_id),
+            ),
         )
     )
     return result.scalar_one_or_none()

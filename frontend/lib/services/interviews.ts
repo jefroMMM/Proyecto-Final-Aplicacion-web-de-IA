@@ -92,6 +92,20 @@ export async function getInterviewReport(interviewId: string): Promise<Candidate
   return apiRequest<CandidateReport>(`/interviews/${interviewId}/report`);
 }
 
+export async function updateInterviewAnswerScore(
+  interviewId: string,
+  answerId: string,
+  finalQuestionScore: number,
+): Promise<CandidateReport["answer_evaluations"][number]> {
+  return apiRequest<CandidateReport["answer_evaluations"][number]>(
+    `/interviews/${interviewId}/answers/${answerId}/score`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ final_question_score: finalQuestionScore }),
+    },
+  );
+}
+
 function mimeToExtension(mimeType: string): string {
   if (mimeType.includes("wav")) return "wav";
   if (mimeType.includes("mpeg") || mimeType.includes("mp3")) return "mp3";

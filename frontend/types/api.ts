@@ -265,15 +265,30 @@ export interface CandidateReport {
   template_title: string;
   detected_cv_skills: string[];
   missing_cv_skills: string[];
+  cv_requirement_matches?: Array<{
+    id: string;
+    interview_id: string;
+    requirement_id: string;
+    skill_name: string;
+    matched: boolean;
+    evidence_text: string;
+    score_awarded: number;
+    created_at: string;
+  }>;
   questions_answered: number;
   answer_evaluations: Array<{
     id: string;
     interview_id: string;
     question_id: string;
+    question_points?: number;
+    question_text?: string;
+    question_source?: string;
     transcript_text: string;
     evaluation_status: AnswerStatus;
     base_question_score: number;
     bonus_score: number;
+    ai_question_score?: number;
+    manual_question_score?: number | null;
     final_question_score: number;
     feedback: string;
     reason: string;
@@ -305,6 +320,7 @@ export interface CandidateQuestion {
   id: string;
   question_text: string;
   expected_answer?: string;
+  source?: string;
   difficulty: TemplateDifficulty | string;
   order_index: number;
   points: number;

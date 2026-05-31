@@ -27,6 +27,7 @@ class CandidateTokenValidationResponse(BaseModel):
 class CandidateQuestionRead(BaseModel):
     id: uuid.UUID
     question_text: str
+    source: str = "template"
     difficulty: str
     order_index: int
     points: float
@@ -56,6 +57,7 @@ class CandidateVoiceAnswerResponse(BaseModel):
 class CandidateFinalResultQuestion(BaseModel):
     question: str
     expected_answer: str
+    source: str = "template"
     candidate_answer: str
     score: float
     max_score: float
