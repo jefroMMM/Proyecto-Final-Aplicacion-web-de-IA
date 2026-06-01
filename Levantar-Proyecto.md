@@ -1,113 +1,87 @@
 # Levantar Proyecto
 
-## 1. Preparar variables de entorno
+## 1) Preparar entorno
 
-Desde la raiz del proyecto:
+Desde la raíz del repo:
 
 ```powershell
-cd C:\Users\JefroMM\tareasIA2026\Proyecto
+cd C:\Users\JefroMM\tareasIA2026\voz-ia-proyecto
 Copy-Item .env.example .env
 ```
 
-Edita `.env` y coloca tus claves reales:
+Editar `.env` con tus credenciales reales (OpenAI, AssemblyAI, Cartesia).
 
-```env
-OPENAI_API_KEY=
-ASSEMBLYAI_API_KEY=
-CARTESIA_API_KEY=
-CARTESIA_VOICE_ID=
-```
-
-Verifica tambien:
-
-```env
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/interviewer
-NEXT_PUBLIC_API_URL=http://localhost:8000
-PUBLIC_BACKEND_URL=http://localhost:8000
-BACKEND_CORS_ORIGINS=http://localhost:3000,http://frontend:3000
-```
-
-## 2. Levantar con Docker
-
-Abre Docker Desktop y espera a que este corriendo.
-
-Luego ejecuta:
+## 2) Levantar servicios
 
 ```powershell
-docker compose up --build
+docker compose up --build -d
 ```
 
-Cuando termine de levantar, abre:
+Verificar estado:
 
-```text
-Frontend: http://localhost:3000
-Backend:  http://localhost:8000
-Docs API: http://localhost:8000/docs
+```powershell
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 ```
 
-Para probar que el backend responde:
+## 3) Accesos
+
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:8000`
+- OpenAPI: `http://localhost:8000/docs`
+
+Prueba rápida backend:
 
 ```powershell
 curl http://localhost:8000/health
 ```
 
-## 3. Flujo para que funcione
+## 4) Flujo recomendado de prueba (plantilla)
 
-1. Entra a `http://localhost:3000`.
-2. Haz clic en `Start Interview`.
-3. Crea una nueva entrevista.
-4. Ingresa:
-   - nombre del candidato
-   - puesto
-   - nombre del entrevistador
-   - email del entrevistador
-5. Sube el CV del candidato en PDF.
-6. Sube el Job Description en PDF o TXT.
-7. Presiona `Create and index`.
-8. Espera a que ambos archivos aparezcan como indexados.
-9. Presiona `Start interview`.
-10. En la pantalla de entrevista, presiona `Start interview`.
-11. Escucha la primera pregunta generada por Cartesia.
-12. Presiona `Record`.
-13. Responde por microfono.
-14. Presiona `Stop`.
-15. Espera a que:
-    - AssemblyAI transcriba tu audio
-    - LangGraph genere la siguiente pregunta
-    - Cartesia genere el audio de respuesta
-16. Repite el proceso de grabar y responder.
-17. Cuando quieras terminar, presiona `Finalize`.
-18. Abre el reporte final en `/reports/{interview_id}`.
+1. Crear template en dashboard.
+2. Agregar requisitos y preguntas.
+3. Crear entrevista desde template.
+4. Subir CV.
+5. Ejecutar análisis de CV.
+6. Enviar invitación al candidato.
+7. Abrir link/token de candidato.
+8. Responder preguntas (voz).
+9. Finalizar y revisar reporte.
 
-## 4. Si algo falla
+## 5) Flujo alterno (agentic + RAG)
 
-Si Docker no levanta:
+1. Crear entrevista.
+2. Subir CV y Job Description por `/upload`.
+3. Reindexar `/rag/reindex/{interview_id}`.
+4. Iniciar `/interview/start/{interview_id}`.
+5. Continuar turnos `/interview/message/{interview_id}`.
+6. Finalizar `/interview/finalize/{interview_id}`.
+
+## 6) Problemas frecuentes
+
+### Contenedor postgres con nombre en conflicto
 
 ```powershell
-docker compose down
-docker compose up --build
+docker rm -f interviewer-postgres
+docker compose up -d
 ```
 
-Si la base de datos quedo con tablas antiguas:
+### Reinicio limpio (borra datos)
 
 ```powershell
 docker compose down -v
-docker compose up --build
+docker compose up --build -d
 ```
 
-Si no se genera audio:
+### No transcribe audio
 
-- revisa `CARTESIA_API_KEY`
-- revisa `CARTESIA_VOICE_ID`
+- Revisar `ASSEMBLYAI_API_KEY`
+- Verificar permisos de micrófono
 
-Si no transcribe audio:
+### No genera voz
 
-- revisa `ASSEMBLYAI_API_KEY`
-- permite el uso del microfono en el navegador
-- usa Chrome o Edge
+- Revisar `CARTESIA_API_KEY` y `CARTESIA_VOICE_ID`
 
-Si no genera preguntas o embeddings:
+### Errores IA
 
-- revisa `OPENAI_API_KEY`
-- verifica conexion a internet
-
+- Revisar `OPENAI_API_KEY`
+- Verificar cuota/API limits

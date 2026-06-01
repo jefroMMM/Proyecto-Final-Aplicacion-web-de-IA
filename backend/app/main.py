@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
+import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,8 +12,23 @@ from app.db.session import close_db_engine, init_db
 from app.services.demo_seed_service import seed_demo_templates_if_enabled
 
 
+def configure_langsmith_env() -> None:
+    os.environ.setdefault("LANGSMITH_ENDPOINT", settings.LANGSMITH_ENDPOINT)
+    os.environ.setdefault("LANGSMITH_PROJECT", settings.effective_langsmith_project)
+    os.environ.setdefault(
+        "LANGSMITH_TRACING",
+        str(settings.langsmith_tracing_enabled).lower(),
+    )
+    os.environ.setdefault(
+        "LANGCHAIN_TRACING_V2",
+        str(settings.langsmith_tracing_enabled).lower(),
+    )
+    os.environ.setdefault("LANGCHAIN_PROJECT", settings.effective_langsmith_project)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    configure_langsmith_env()
     await init_db()
     await seed_demo_templates_if_enabled()
     yield

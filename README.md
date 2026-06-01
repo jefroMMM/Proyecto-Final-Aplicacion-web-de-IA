@@ -1,296 +1,139 @@
 # AI Technical Interviewer Voice System
 
-Plataforma universitaria full stack para entrevistas tecnicas asistidas por IA, con flujo por plantillas, analisis de CV, evaluacion por preguntas y entrevista por voz.
+Plataforma full stack para entrevistas técnicas asistidas por IA con dos modos de operación:
 
-## Objetivo universitario
+- Flujo por plantilla (productivo para evaluación estructurada)
+- Flujo agentic con LangGraph + RAG + entrevista por voz
 
-Demostrar una arquitectura moderna de IA aplicada a reclutamiento tecnico:
-- definicion de entrevistas por plantilla,
-- evaluacion automatizada de habilidades,
-- transcripcion de voz a texto en tiempo real,
-- scoring estructurado y reporte final profesional.
+Este repositorio incluye frontend, backend, persistencia, procesamiento de audio y generación de reportes.
 
-## Stack tecnologico
+## Tabla de Contenido
 
-- Frontend: Next.js 15, TypeScript, TailwindCSS, shadcn/ui, Framer Motion, Zustand
-- Backend: FastAPI, Python 3.12, SQLAlchemy, Pydantic, LangChain, LangGraph
+- [Arquitectura](#arquitectura)
+- [Estructura del repositorio](#estructura-del-repositorio)
+- [Flujos funcionales](#flujos-funcionales)
+- [Variables de entorno](#variables-de-entorno)
+- [Ejecución local con Docker](#ejecución-local-con-docker)
+- [Documentación técnica](#documentación-técnica)
+- [Notas operativas](#notas-operativas)
+
+## Arquitectura
+
+- Frontend: Next.js 15, TypeScript, TailwindCSS, Zustand
+- Backend: FastAPI, SQLAlchemy async, Pydantic
 - Base de datos: PostgreSQL + pgvector
-- IA: OpenAI
-- STT: AssemblyAI
-- TTS: Cartesia
-- Infraestructura: Docker, Docker Compose
+- IA:
+  - OpenAI (generación/evaluación)
+  - LangChain/LangGraph (workflow agentic)
+- Voz:
+  - AssemblyAI (STT)
+  - Cartesia (TTS)
+- Infra:
+  - Docker Compose
 
-## Arquitectura general
+Diagrama de alto nivel: ver [HIGH_LEVEL_SYSTEM_DESIGN.md](/C:/Users/JefroMM/tareasIA2026/voz-ia-proyecto/docs/HIGH_LEVEL_SYSTEM_DESIGN.md)
 
-- `frontend/`: UI del reclutador y UI del entrevistado.
-- `backend/app/api`: rutas REST.
-- `backend/app/services`: logica de negocio.
-- `backend/app/repositories`: acceso a datos.
-- `backend/app/models`: modelos SQLAlchemy.
-- `backend/app/rag`: pipeline de embeddings y retrieval en pgvector.
-- `backend/app/audio`: STT (AssemblyAI) y TTS (Cartesia).
-- `backend/app/langgraph` + `backend/app/agents`: workflow de entrevista y evaluacion.
-- `docs/HIGH_LEVEL_SYSTEM_DESIGN.md`: diseno de alto nivel, decisiones tecnicas, limitaciones y mejoras.
-- `docs/PRESENTACION_DEMO.md`: guion de presentacion y demo.
+## Estructura del repositorio
 
-## Flujo basado en plantillas
+```text
+frontend/                 # Next.js app
+backend/
+  app/
+    api/routes/           # Endpoints FastAPI
+    services/             # Casos de uso / lógica de negocio
+    repositories/         # Acceso a datos
+    models/               # Modelos SQLAlchemy
+    schemas/              # Contratos Pydantic
+    rag/                  # Ingesta, embeddings, retrieval
+    langgraph/            # Workflow stateful
+    audio/                # STT/TTS y rutas de entrevista por voz
+    db/                   # init.sql y sesión
+    core/                 # Configuración
+docs/                     # Documentación técnica
+docker-compose.yml
+.env.example
+```
 
-1. Reclutador crea plantilla (`title`, `description`, `role_name`).
-2. Agrega requisitos (skills) y preguntas con puntos/dificultad.
-3. Crea entrevista desde plantilla.
-4. Sube CV del candidato.
-5. Ejecuta analisis de CV contra requisitos.
-6. Inicia entrevista (texto o voz).
-7. El sistema evalua cada respuesta y acumula score.
-8. Finaliza entrevista y genera reporte estructurado.
+## Flujos funcionales
 
-## Sistema de puntos
+### 1) Flujo por plantilla
 
-- CV score inicial: `+0.5` por cada requisito detectado en CV.
-- Preguntas:
-  - `correct`: puntos completos
-  - `partially_correct`: mitad de puntos
-  - `incorrect` y `unknown`: 0
-- Bonus: `+0.5` si una skill no detectada en CV se demuestra correctamente en respuesta.
+1. Crear plantilla (`/templates`)
+2. Agregar requisitos y preguntas
+3. Crear entrevista (`/interviews` con payload v2)
+4. Subir CV (`/interviews/{id}/upload-cv`)
+5. Analizar CV (`/interviews/{id}/analyze-cv`)
+6. Enviar invitación al candidato (`/interviews/{id}/send-candidate-invite`)
+7. Responder por texto o audio (`/interviews/{id}/answer` o `/audio-answer`)
+8. Finalizar y obtener reporte (`/interviews/{id}/finalize`, `/report`)
 
-## Analisis de CV
+### 2) Flujo agentic (LangGraph)
 
-- Se extrae texto del CV (PDF).
-- Se compara contra requisitos con salida estructurada.
-- Se guarda evidencia en `candidate_skill_matches`.
-- Se actualiza `initial_cv_score` en `interviews`.
+1. Cargar documentos CV/Job Description (`/upload/cv/{id}`, `/upload/job/{id}`)
+2. Reindexar contexto RAG (`/rag/reindex/{id}`)
+3. Iniciar workflow (`/interview/start/{id}`)
+4. Turnos del candidato (`/interview/message/{id}`)
+5. Finalizar (`/interview/finalize/{id}`)
 
-## Evaluacion por preguntas
+### 3) Flujo voice agentic
 
-- Orden por `order_index`.
-- Sin repetir preguntas contestadas.
-- Persistencia en `interview_answers`.
-- Scoring incremental (`question_score`, `bonus_score`, `final_score`).
-
-## Flujo voz a texto
-
-1. Frontend graba audio temporal.
-2. Backend recibe `multipart/form-data`.
-3. AssemblyAI transcribe a texto.
-4. El texto se evalua (dato principal).
-5. Se devuelve evaluacion + siguiente pregunta.
-
-Nota: la evaluacion se basa en texto transcrito, no en audio crudo.
-
-## UI del reclutador
-
-- Templates: crear/editar/eliminar plantilla, requisitos y preguntas.
-- Interviews: crear entrevista, subir CV, analizar CV, monitorear score.
-- Reports: score final, porcentaje, skills detectadas/faltantes, feedback por pregunta.
-
-## UI del entrevistado
-
-Ruta:
-- `/candidate/interview/[interviewId]`
-
-Incluye:
-- bienvenida e instrucciones,
-- pregunta actual,
-- grabacion por microfono,
-- estados visuales (escuchando/transcribiendo/analizando),
-- timeline y progreso,
-- pantalla final al terminar.
-
-## Reporte final
-
-Incluye:
-- candidate_name, role_name, template_title
-- detected_cv_skills, missing_cv_skills
-- questions_answered, answer_evaluations
-- initial_cv_score, question_score, bonus_score, final_score, max_score, percentage
-- strengths, weaknesses, recommendation, final_summary
-
-Recomendacion:
-- `highly_recommended`
-- `recommended`
-- `needs_review`
-- `not_recommended`
+1. Iniciar voz (`/interview/audio/start/{id}`)
+2. Enviar audio del candidato (`/interview/audio/{id}`)
+3. Backend transcribe, evalúa, sintetiza siguiente respuesta y guarda trazas de transcript
 
 ## Variables de entorno
 
-Definir en `.env` (usar `.env.example` como base):
+Usar `.env.example` como base.
+
+Variables críticas:
 
 - `OPENAI_API_KEY`
 - `ASSEMBLYAI_API_KEY`
 - `CARTESIA_API_KEY`
 - `DATABASE_URL`
-- `NEXT_PUBLIC_API_URL`
-- `ASSEMBLYAI_SPEECH_MODEL`
-- `ASSEMBLYAI_LANGUAGE_CODE`
-- `ASSEMBLYAI_LANGUAGE_DETECTION`
-- `ASSEMBLYAI_SAMPLE_RATE`
-
-Variables adicionales recomendadas:
 - `BACKEND_CORS_ORIGINS`
+- `NEXT_PUBLIC_API_URL`
 - `PUBLIC_BACKEND_URL`
-- `CARTESIA_VOICE_ID`
-- `FRONTEND_PORT`
+- `PUBLIC_FRONTEND_URL`
 
-## Instalacion y ejecucion con Docker
+Variables de tracing:
 
-1. Copiar variables:
-```bash
-cp .env.example .env
+- `LANGSMITH_API_KEY`
+- `LANGSMITH_TRACING`
+- `LANGSMITH_PROJECT`
+- `LANGSMITH_ENDPOINT`
+
+## Ejecución local con Docker
+
+1. Copiar entorno
+
+```powershell
+Copy-Item .env.example .env
 ```
 
-2. Levantar servicios:
-```bash
+2. Levantar servicios
+
+```powershell
 docker compose up --build
 ```
 
-Servicios esperados:
+3. URLs
+
 - Frontend: `http://localhost:3000`
 - Backend: `http://localhost:8000`
-- API docs: `http://localhost:8000/docs`
+- OpenAPI: `http://localhost:8000/docs`
 
-## Endpoints principales
+Guía rápida adicional: [Levantar-Proyecto.md](/C:/Users/JefroMM/tareasIA2026/voz-ia-proyecto/Levantar-Proyecto.md)
 
-### Plantillas
-- `GET /templates`
-- `POST /templates`
-- `GET /templates/{template_id}`
-- `PUT /templates/{template_id}`
-- `DELETE /templates/{template_id}`
-- `POST /templates/{template_id}/requirements`
-- `PUT /templates/requirements/{requirement_id}`
-- `DELETE /templates/requirements/{requirement_id}`
-- `POST /templates/{template_id}/questions`
-- `PUT /templates/questions/{question_id}`
-- `DELETE /templates/questions/{question_id}`
+## Documentación técnica
 
-### Entrevistas
-- `POST /interviews`
-- `POST /interviews/{interview_id}/upload-cv`
-- `POST /interviews/{interview_id}/analyze-cv`
-- `POST /interviews/{interview_id}/start`
-- `POST /interviews/{interview_id}/answer`
-- `POST /interviews/{interview_id}/audio-answer`
-- `GET /interviews/{interview_id}/score`
-- `POST /interviews/{interview_id}/finalize`
-- `GET /interviews/{interview_id}/report`
+- Diseño de sistema: [HIGH_LEVEL_SYSTEM_DESIGN.md](/C:/Users/JefroMM/tareasIA2026/voz-ia-proyecto/docs/HIGH_LEVEL_SYSTEM_DESIGN.md)
+- Referencia de API: [API_REFERENCE.md](/C:/Users/JefroMM/tareasIA2026/voz-ia-proyecto/docs/API_REFERENCE.md)
+- Operación y troubleshooting: [OPERATIONS_AND_TROUBLESHOOTING.md](/C:/Users/JefroMM/tareasIA2026/voz-ia-proyecto/docs/OPERATIONS_AND_TROUBLESHOOTING.md)
+- Demo: [PRESENTACION_DEMO.md](/C:/Users/JefroMM/tareasIA2026/voz-ia-proyecto/docs/PRESENTACION_DEMO.md)
 
-### Salud
-- `GET /health`
+## Notas operativas
 
-## Estructura del proyecto
-
-```text
-/frontend
-/backend
-  /app
-    /api
-    /core
-    /db
-    /models
-    /schemas
-    /services
-    /rag
-    /agents
-    /langgraph
-    /tools
-    /audio
-    /prompts
-    /utils
-/docker-compose.yml
-/.env.example
-```
-
-## Como hacer demo (flujo)
-
-1. Abrir frontend en `http://localhost:3000`.
-2. Ir a templates y crear plantilla.
-3. Agregar requisitos y preguntas.
-4. Crear entrevista desde plantilla.
-5. Subir CV del candidato.
-6. Ejecutar analisis de CV.
-7. Abrir UI del entrevistado con el link de entrevista.
-8. Iniciar entrevista.
-9. Responder por voz (microfono habilitado).
-10. Mostrar transcripcion y avance de score.
-11. Finalizar entrevista.
-12. Mostrar reporte final en dashboard.
-
-## Guion para demo universitaria
-
-1. Problema:
-   - entrevistas tecnicas manuales consumen tiempo y tienen sesgos de evaluacion.
-2. Arquitectura:
-   - frontend Next.js + backend FastAPI + PostgreSQL/pgvector + OpenAI + AssemblyAI + Cartesia.
-3. Plantillas:
-   - crear plantilla del puesto, requisitos y preguntas con puntaje.
-4. CV:
-   - subir CV y ejecutar analisis automatico de skills.
-5. Entrevista:
-   - abrir vista del entrevistado e iniciar.
-6. Voz:
-   - responder por microfono, transcripcion en tiempo real, evaluacion estructurada.
-7. Scoring:
-   - mostrar score por CV, score por preguntas y bonus.
-8. Cierre:
-   - finalizar entrevista y revisar reporte profesional.
-9. Valor tecnico:
-   - pipeline modular, persistencia completa y trazabilidad de evaluacion.
-
-## Problemas comunes y soluciones
-
-1. `Cartesia ... Invalid credentials`:
-   - revisar `CARTESIA_API_KEY` en `.env` y recrear contenedores.
-
-2. `No se pudo iniciar entrevista`:
-   - validar que la entrevista tenga plantilla y preguntas.
-
-3. Puerto `3000` ocupado:
-   - cambiar `FRONTEND_PORT` en `.env` (ejemplo `3001`) y reiniciar.
-
-4. CORS:
-   - agregar origen en `BACKEND_CORS_ORIGINS`.
-
-5. Base de datos sucia para demo desde cero:
-```bash
-docker compose down -v
-docker compose up --build
-```
-
-6. Lint con miles de errores en `.next`:
-   - ya corregido ignorando build artifacts en ESLint.
-
-## Capturas / screenshots
-
-Agregar aqui antes de la entrega final:
-- Dashboard templates
-- Creacion de entrevista
-- UI entrevistado en voz
-- Reporte final
-
-## Entregables academicos
-
-- Codigo fuente completo: `frontend/`, `backend/`, `docker-compose.yml`.
-- README con instalacion, ejecucion, variables y endpoints.
-- High Level System Design: `docs/HIGH_LEVEL_SYSTEM_DESIGN.md`.
-- Guion de presentacion/demo: `docs/PRESENTACION_DEMO.md`.
-- Assets de demo: `demo-assets/`.
-
-## Checklist final
-
-- [x] Frontend web
-- [x] Backend independiente
-- [x] Carga y extraccion de CV PDF
-- [x] Carga y procesamiento de descripcion de puesto
-- [x] Entrevista por voz
-- [x] STT con AssemblyAI
-- [x] TTS con Cartesia / Web Speech
-- [x] LLM con OpenAI
-- [x] Structured outputs con Pydantic
-- [x] Tool calling con LangChain tools
-- [x] RAG con chunking, embeddings y retrieval
-- [x] Vector store con pgvector
-- [x] Workflow agentico con LangGraph
-- [x] Persistencia de entrevistas, transcripciones, estados y reportes
-- [x] Reporte final estructurado
-- [ ] Demo funcional validada en vivo con credenciales reales
-
+- Este proyecto usa servicios externos con costo por uso (OpenAI, AssemblyAI, Cartesia).
+- No incluir claves reales en commits.
+- Si una clave fue expuesta, rotarla inmediatamente.

@@ -51,6 +51,12 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     SMTP_ENCRYPTION: str = "tls"
     SMTP_FROM_EMAIL: str = ""
+    LANGSMITH_API_KEY: str = ""
+    LANGSMITH_TRACING: bool = False
+    LANGSMITH_PROJECT: str = "default"
+    LANGSMITH_ENDPOINT: str = "https://api.smith.langchain.com"
+    LANGCHAIN_TRACING_V2: bool = False
+    LANGCHAIN_PROJECT: str = "default"
 
     @computed_field
     @property
@@ -65,6 +71,18 @@ class Settings(BaseSettings):
     @property
     def audio_storage_path(self) -> Path:
         return Path(self.AUDIO_STORAGE_DIR)
+
+    @computed_field
+    @property
+    def effective_langsmith_project(self) -> str:
+        if self.LANGSMITH_PROJECT.strip():
+            return self.LANGSMITH_PROJECT.strip()
+        return self.LANGCHAIN_PROJECT.strip() or "default"
+
+    @computed_field
+    @property
+    def langsmith_tracing_enabled(self) -> bool:
+        return self.LANGSMITH_TRACING or self.LANGCHAIN_TRACING_V2
 
 
 @lru_cache
