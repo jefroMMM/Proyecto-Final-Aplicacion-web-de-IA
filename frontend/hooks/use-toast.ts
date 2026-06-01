@@ -7,11 +7,12 @@ export interface ToastMessage {
   title: string;
   description?: string;
   kind: ToastKind;
+  durationMs: number;
 }
 
 interface ToastState {
   toasts: ToastMessage[];
-  showToast: (message: Omit<ToastMessage, "id">) => void;
+  showToast: (message: Omit<ToastMessage, "id" | "durationMs"> & { durationMs?: number }) => void;
   dismissToast: (id: string) => void;
 }
 
@@ -19,10 +20,11 @@ export const useToast = create<ToastState>((set) => ({
   toasts: [],
   showToast: (message) => {
     const id = crypto.randomUUID();
-    set((state) => ({ toasts: [...state.toasts, { ...message, id }] }));
+    const durationMs = message.durationMs ?? 4500;
+    set((state) => ({ toasts: [...state.toasts, { ...message, id, durationMs }] }));
     window.setTimeout(() => {
       set((state) => ({ toasts: state.toasts.filter((toast) => toast.id !== id) }));
-    }, 4500);
+    }, durationMs);
   },
   dismissToast: (id) =>
     set((state) => ({ toasts: state.toasts.filter((toast) => toast.id !== id) })),

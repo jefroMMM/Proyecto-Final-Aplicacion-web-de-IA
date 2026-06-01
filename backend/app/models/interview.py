@@ -59,6 +59,10 @@ class Interview(Base):
         onupdate=func.now(),
         nullable=False,
     )
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
     user: Mapped["User"] = relationship(back_populates="interviews")
     template: Mapped["InterviewTemplate | None"] = relationship(back_populates="interviews")
@@ -91,3 +95,7 @@ class Interview(Base):
         cascade="all, delete-orphan",
         order_by="InterviewAnswer.created_at",
     )
+
+    @property
+    def is_archived(self) -> bool:
+        return self.archived_at is not None

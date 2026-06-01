@@ -42,6 +42,8 @@ class InterviewRead(BaseModel):
     candidate_access_token: str | None = None
     candidate_interview_url: str | None = None
     candidate_email_sent: bool | None = None
+    archived_at: datetime | None = None
+    is_archived: bool = False
     created_at: datetime
     updated_at: datetime
 

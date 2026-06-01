@@ -30,6 +30,22 @@ export async function listInterviews(): Promise<Interview[]> {
   return apiRequest<Interview[]>("/interviews");
 }
 
+export async function listArchivedInterviews(): Promise<Interview[]> {
+  return apiRequest<Interview[]>("/interviews/archived");
+}
+
+export async function archiveInterview(interviewId: string): Promise<Interview> {
+  return apiRequest<Interview>(`/interviews/${interviewId}/archive`, {
+    method: "POST",
+  });
+}
+
+export async function unarchiveInterview(interviewId: string): Promise<Interview> {
+  return apiRequest<Interview>(`/interviews/${interviewId}/unarchive`, {
+    method: "POST",
+  });
+}
+
 export async function getInterview(interviewId: string): Promise<InterviewDetail> {
   return apiRequest<InterviewDetail>(`/interviews/${interviewId}`);
 }

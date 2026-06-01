@@ -50,7 +50,15 @@ async def ensure_interview_exists(session: AsyncSession, interview_id: uuid.UUID
 
 
 async def list_interviews(session: AsyncSession):
-    interviews = await interview_repository.list_interviews(session)
+    interviews = await interview_repository.list_interviews(session, archived=False)
+    for interview in interviews:
+        if interview.template:
+            interview.max_score = calculate_max_score_for_template(interview.template)
+    return interviews
+
+
+async def list_archived_interviews(session: AsyncSession):
+    interviews = await interview_repository.list_interviews(session, archived=True)
     for interview in interviews:
         if interview.template:
             interview.max_score = calculate_max_score_for_template(interview.template)
@@ -64,4 +72,36 @@ async def get_interview_detail(session: AsyncSession, interview_id: uuid.UUID):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Interview not found",
         )
+    return interview
+
+
+async def archive_interview(session: AsyncSession, interview_id: uuid.UUID):
+    interview = await interview_repository.set_interview_archived(
+        session,
+        interview_id=interview_id,
+        archived=True,
+    )
+    if not interview:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Interview not found",
+        )
+    await session.commit()
+    await session.refresh(interview)
+    return interview
+
+
+async def unarchive_interview(session: AsyncSession, interview_id: uuid.UUID):
+    interview = await interview_repository.set_interview_archived(
+        session,
+        interview_id=interview_id,
+        archived=False,
+    )
+    if not interview:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Interview not found",
+        )
+    await session.commit()
+    await session.refresh(interview)
     return interview

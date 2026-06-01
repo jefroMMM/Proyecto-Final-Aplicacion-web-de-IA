@@ -34,7 +34,8 @@ async def init_db() -> None:
                 "ADD COLUMN IF NOT EXISTS question_score numeric(10,2) DEFAULT 0 NOT NULL, "
                 "ADD COLUMN IF NOT EXISTS bonus_score numeric(10,2) DEFAULT 0 NOT NULL, "
                 "ADD COLUMN IF NOT EXISTS final_score numeric(10,2) DEFAULT 0 NOT NULL, "
-                "ADD COLUMN IF NOT EXISTS max_score numeric(10,2) DEFAULT 0 NOT NULL"
+                "ADD COLUMN IF NOT EXISTS max_score numeric(10,2) DEFAULT 0 NOT NULL, "
+                "ADD COLUMN IF NOT EXISTS archived_at timestamptz"
             )
         )
         await connection.execute(

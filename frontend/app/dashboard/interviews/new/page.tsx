@@ -35,6 +35,7 @@ export default function DashboardNewInterviewPage() {
   const [candidateEmailSent, setCandidateEmailSent] = useState<boolean | null>(null);
   const [workflowStatus, setWorkflowStatus] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitCooldown, setSubmitCooldown] = useState(false);
 
   useEffect(() => {
     listTemplates()
@@ -53,10 +54,13 @@ export default function DashboardNewInterviewPage() {
   );
 
   const canSubmit = Boolean(selectedTemplateId && candidateName.trim() && candidateEmail.trim() && cvFile);
+  const isSubmitDisabled = submitting || submitCooldown || !canSubmit;
 
   async function handleCreateInterview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || submitCooldown || submitting) return;
+    setSubmitCooldown(true);
+    window.setTimeout(() => setSubmitCooldown(false), 2000);
     setSubmitting(true);
     setCandidateEmailSent(null);
     setWorkflowStatus("Creando entrevista...");
@@ -81,8 +85,9 @@ export default function DashboardNewInterviewPage() {
         kind: "success",
         title: "Entrevista creada",
         description: invitedInterview.candidate_email_sent
-          ? "El enlace fue enviado al correo del candidato."
+          ? `El acceso fue enviado a ${candidateEmail}.`
           : "La entrevista quedo lista; copia el enlace si el correo no fue enviado.",
+        durationMs: 6000,
       });
     } catch (error) {
       showToast({ kind: "error", title: "No se pudo crear la entrevista", description: error instanceof Error ? error.message : "Error inesperado" });
@@ -147,7 +152,7 @@ export default function DashboardNewInterviewPage() {
             </div>
 
             <div className="flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center">
-              <Button type="submit" disabled={submitting || !canSubmit}>
+              <Button type="submit" disabled={isSubmitDisabled}>
                 {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                 {submitting ? workflowStatus || "Creando flujo..." : "Crear y enviar acceso"}
               </Button>

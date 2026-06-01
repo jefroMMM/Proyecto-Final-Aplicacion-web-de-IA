@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,14 +34,22 @@ async def create_interview(
     return interview
 
 
-async def list_interviews(session: AsyncSession) -> list[Interview]:
-    result = await session.execute(
+async def list_interviews(session: AsyncSession, *, archived: bool = False) -> list[Interview]:
+    query = (
         select(Interview)
         .options(
             selectinload(Interview.template).selectinload(InterviewTemplate.requirements),
             selectinload(Interview.template).selectinload(InterviewTemplate.questions),
             with_loader_criteria(TemplateQuestion, TemplateQuestion.generated_for_interview_id.is_(None)),
         )
+    )
+    if archived:
+        query = query.where(Interview.archived_at.is_not(None))
+    else:
+        query = query.where(Interview.archived_at.is_(None))
+
+    result = await session.execute(
+        query
         .order_by(Interview.created_at.desc())
     )
     return list(result.scalars().all())
@@ -90,6 +99,20 @@ async def update_interview_status(
     if interview:
         interview.status = status
         await session.flush()
+
+
+async def set_interview_archived(
+    session: AsyncSession,
+    *,
+    interview_id: uuid.UUID,
+    archived: bool,
+) -> Interview | None:
+    interview = await session.get(Interview, interview_id)
+    if not interview:
+        return None
+    interview.archived_at = datetime.now(UTC) if archived else None
+    await session.flush()
+    return interview
 
 
 async def get_default_user_id(session: AsyncSession) -> uuid.UUID:

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, FileText, Mail, Mic2 } from "lucide-react";
+import { Archive, CalendarClock, FileText, Mail, Mic2, RotateCcw } from "lucide-react";
 
 import { InterviewStatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
@@ -8,9 +8,21 @@ import { Progress } from "@/components/ui/progress";
 import { formatDateTime, interviewPercentage } from "@/lib/admin-format";
 import type { Interview } from "@/types/api";
 
-export function InterviewCard({ interview }: { interview: Interview }) {
+export function InterviewCard({
+  interview,
+  onArchive,
+  onUnarchive,
+  busy = false,
+}: {
+  interview: Interview;
+  onArchive?: (interviewId: string) => void;
+  onUnarchive?: (interviewId: string) => void;
+  busy?: boolean;
+}) {
   const percentage = interviewPercentage(interview);
   const hasCandidateLink = Boolean(interview.candidate_interview_url);
+  const isArchived = Boolean(interview.archived_at || interview.is_archived);
+  const canOpenReport = interview.status === "completed";
 
   return (
     <Card className="glass-panel">
@@ -44,12 +56,31 @@ export function InterviewCard({ interview }: { interview: Interview }) {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button asChild size="sm" variant="secondary">
-            <Link href={`/dashboard/interviews/${interview.id}/report`}>
+          {canOpenReport ? (
+            <Button asChild size="sm" variant="secondary">
+              <Link href={`/dashboard/interviews/${interview.id}/report`}>
+                <FileText className="mr-2 h-4 w-4" />
+                Reporte
+              </Link>
+            </Button>
+          ) : (
+            <Button size="sm" variant="secondary" disabled>
               <FileText className="mr-2 h-4 w-4" />
               Reporte
-            </Link>
-          </Button>
+            </Button>
+          )}
+          {!isArchived && onArchive ? (
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => onArchive(interview.id)}>
+              <Archive className="mr-2 h-4 w-4" />
+              Archivar
+            </Button>
+          ) : null}
+          {isArchived && onUnarchive ? (
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => onUnarchive(interview.id)}>
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Desarchivar
+            </Button>
+          ) : null}
           {hasCandidateLink ? (
             <Button asChild size="sm" variant="outline">
               <Link href={interview.candidate_interview_url ?? "#"} target="_blank">

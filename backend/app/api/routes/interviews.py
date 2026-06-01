@@ -45,6 +45,13 @@ async def list_interviews(
     return await interview_service.list_interviews(session)
 
 
+@router.get("/archived", response_model=list[InterviewRead])
+async def list_archived_interviews(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+):
+    return await interview_service.list_archived_interviews(session)
+
+
 @router.get("/{interview_id}", response_model=InterviewDetailRead)
 async def get_interview(
     interview_id: uuid.UUID,
@@ -170,3 +177,19 @@ async def update_template_answer_score(
         answer_id=answer_id,
         final_question_score=payload.final_question_score,
     )
+
+
+@router.post("/{interview_id}/archive", response_model=InterviewRead)
+async def archive_interview(
+    interview_id: uuid.UUID,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+):
+    return await interview_service.archive_interview(session, interview_id)
+
+
+@router.post("/{interview_id}/unarchive", response_model=InterviewRead)
+async def unarchive_interview(
+    interview_id: uuid.UUID,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+):
+    return await interview_service.unarchive_interview(session, interview_id)

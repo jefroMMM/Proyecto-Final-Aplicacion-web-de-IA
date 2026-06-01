@@ -464,6 +464,11 @@ async def finalize_interview(session: AsyncSession, interview_id: uuid.UUID):
 
 async def get_final_report(session: AsyncSession, interview_id: uuid.UUID):
     interview = await _require_interview_with_template(session, interview_id)
+    if interview.status != "completed":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Interview is not completed yet",
+        )
     if not interview.report:
         return await finalize_interview(session, interview_id)
     answers = await _recalculate_interview_scores(session, interview)

@@ -45,6 +45,8 @@ export interface Interview {
   candidate_access_token?: string | null;
   candidate_interview_url?: string | null;
   candidate_email_sent?: boolean | null;
+  archived_at?: string | null;
+  is_archived?: boolean;
   created_at: string;
   updated_at: string;
 }

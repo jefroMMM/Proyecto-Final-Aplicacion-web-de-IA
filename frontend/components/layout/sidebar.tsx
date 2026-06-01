@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, ClipboardList, LayoutDashboard, Mic2, PlusCircle, Shapes, Sparkles } from "lucide-react";
+import { Archive, BarChart3, ClipboardList, LayoutDashboard, Mic2, PlusCircle, Shapes, Sparkles } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,7 @@ const links = [
   { href: "/dashboard", label: "Panel", icon: LayoutDashboard },
   { href: "/dashboard/templates", label: "Plantillas", icon: Shapes },
   { href: "/dashboard/interviews", label: "Entrevistas", icon: ClipboardList },
+  { href: "/dashboard/interviews/archived", label: "Archivadas", icon: Archive },
   { href: "/dashboard/interviews/new", label: "Nueva entrevista", icon: PlusCircle },
   { href: "/dashboard/reports", label: "Reportes", icon: BarChart3 },
 ];
@@ -72,6 +73,7 @@ export function Sidebar({
 function isActive(pathname: string, href: string) {
   if (href === "/dashboard") return pathname === href;
   if (href === "/dashboard/interviews") return pathname === href;
+  if (href === "/dashboard/interviews/archived") return pathname === href;
   if (href === "/dashboard/interviews/new") return pathname === href;
   if (href === "/dashboard/reports") {
     return (

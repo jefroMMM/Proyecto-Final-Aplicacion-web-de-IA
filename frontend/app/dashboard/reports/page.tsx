@@ -45,7 +45,7 @@ export default function DashboardReportsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const reportable = useMemo(() => interviews.filter((item) => item.status === "completed" || item.final_score > 0), [interviews]);
+  const reportable = useMemo(() => interviews.filter((item) => item.status === "completed"), [interviews]);
   const roleOptions = useMemo(
     () => Array.from(new Set(reportable.map((item) => item.job_title).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
     [reportable],
