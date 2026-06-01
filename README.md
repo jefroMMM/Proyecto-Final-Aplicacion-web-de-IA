@@ -30,6 +30,8 @@ Demostrar una arquitectura moderna de IA aplicada a reclutamiento tecnico:
 - `backend/app/rag`: pipeline de embeddings y retrieval en pgvector.
 - `backend/app/audio`: STT (AssemblyAI) y TTS (Cartesia).
 - `backend/app/langgraph` + `backend/app/agents`: workflow de entrevista y evaluacion.
+- `docs/HIGH_LEVEL_SYSTEM_DESIGN.md`: diseno de alto nivel, decisiones tecnicas, limitaciones y mejoras.
+- `docs/PRESENTACION_DEMO.md`: guion de presentacion y demo.
 
 ## Flujo basado en plantillas
 
@@ -265,16 +267,30 @@ Agregar aqui antes de la entrega final:
 - UI entrevistado en voz
 - Reporte final
 
+## Entregables academicos
+
+- Codigo fuente completo: `frontend/`, `backend/`, `docker-compose.yml`.
+- README con instalacion, ejecucion, variables y endpoints.
+- High Level System Design: `docs/HIGH_LEVEL_SYSTEM_DESIGN.md`.
+- Guion de presentacion/demo: `docs/PRESENTACION_DEMO.md`.
+- Assets de demo: `demo-assets/`.
+
 ## Checklist final
 
-- [ ] Docker levanta
-- [ ] Frontend abre
-- [ ] Backend responde (`/health`)
-- [ ] Base de datos conecta
-- [ ] Plantillas funcionan
-- [ ] CV se analiza
-- [ ] Sistema de puntos funciona
-- [ ] Audio se transcribe (AssemblyAI)
-- [ ] Agente evalua respuestas
-- [ ] Reporte final aparece
+- [x] Frontend web
+- [x] Backend independiente
+- [x] Carga y extraccion de CV PDF
+- [x] Carga y procesamiento de descripcion de puesto
+- [x] Entrevista por voz
+- [x] STT con AssemblyAI
+- [x] TTS con Cartesia / Web Speech
+- [x] LLM con OpenAI
+- [x] Structured outputs con Pydantic
+- [x] Tool calling con LangChain tools
+- [x] RAG con chunking, embeddings y retrieval
+- [x] Vector store con pgvector
+- [x] Workflow agentico con LangGraph
+- [x] Persistencia de entrevistas, transcripciones, estados y reportes
+- [x] Reporte final estructurado
+- [ ] Demo funcional validada en vivo con credenciales reales
 

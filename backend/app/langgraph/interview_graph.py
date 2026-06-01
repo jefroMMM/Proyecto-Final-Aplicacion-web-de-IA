@@ -16,7 +16,13 @@ from app.prompts.interview_workflow import (
     QUESTION_GENERATION_PROMPT,
     REPORT_GENERATION_PROMPT,
 )
+from app.models.document import Document
+from app.models.embedding_metadata import EmbeddingMetadata
+from app.rag.chunking import DocumentChunker, TextChunk
+from app.rag.embeddings import OpenAIEmbeddingService
 from app.rag.retrieval import retrieve_context_text
+from app.repositories import documents as document_repository
+from app.repositories import embedding_metadata as embedding_repository
 from app.repositories import interviews as interview_repository
 from app.repositories import reports as report_repository
 from app.repositories import transcripts as transcript_repository
@@ -51,6 +57,9 @@ class InterviewState(TypedDict, total=False):
     candidate_profile: dict[str, Any]
     cv_context: str
     job_context: str
+    rag_documents_processed: int
+    rag_chunks_indexed: int
+    rag_sources_ready: list[str]
     current_question: str | None
     candidate_answer: str | None
     candidate_audio_url: str | None
@@ -75,6 +84,11 @@ class InterviewGraphRunner:
             )
 
         self._session = session
+        self._chunker = DocumentChunker()
+        self._embedding_service = OpenAIEmbeddingService()
+        self._rag_documents: list[Document] = []
+        self._rag_chunks: list[tuple[Document, TextChunk]] = []
+        self._rag_embeddings: list[list[float]] = []
         self._llm = ChatOpenAI(
             model="gpt-4.1",
             api_key=settings.OPENAI_API_KEY,
@@ -90,6 +104,105 @@ class InterviewGraphRunner:
         )
         result = await self._graph.ainvoke(state)
         return InterviewState(**result)
+
+    async def route_rag_preparation(self, state: InterviewState) -> InterviewState:
+        return state
+
+    async def ingest_cv_document(self, state: InterviewState) -> InterviewState:
+        interview_id = uuid.UUID(state["interview_id"])
+        self._rag_documents = await document_repository.list_documents_by_interview_id(
+            self._session,
+            interview_id,
+        )
+        cv_documents = [
+            document for document in self._rag_documents if document.document_type == "cv"
+        ]
+        if not cv_documents:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Upload and index a CV before starting the interview",
+            )
+
+        return {
+            **state,
+            "rag_sources_ready": sorted(
+                {*state.get("rag_sources_ready", []), "cv"}
+            ),
+        }
+
+    async def ingest_job_description(self, state: InterviewState) -> InterviewState:
+        job_documents = [
+            document
+            for document in self._rag_documents
+            if document.document_type == "job_description"
+        ]
+        if not job_documents:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Upload and index a job description before starting the interview",
+            )
+
+        return {
+            **state,
+            "rag_sources_ready": sorted(
+                {*state.get("rag_sources_ready", []), "job_description"}
+            ),
+        }
+
+    async def chunk_documents(self, state: InterviewState) -> InterviewState:
+        self._rag_chunks = [
+            (document, chunk)
+            for document in self._rag_documents
+            for chunk in self._chunker.split(
+                document.content_text,
+                source_type=document.document_type,
+            )
+        ]
+        if not self._rag_chunks:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Uploaded documents did not produce retrievable chunks",
+            )
+
+        return {
+            **state,
+            "rag_documents_processed": len(self._rag_documents),
+            "rag_chunks_indexed": len(self._rag_chunks),
+        }
+
+    async def generate_embeddings(self, state: InterviewState) -> InterviewState:
+        self._rag_embeddings = await self._embedding_service.embed_documents(
+            [chunk.chunk_text for _, chunk in self._rag_chunks]
+        )
+        return state
+
+    async def store_vector_index(self, state: InterviewState) -> InterviewState:
+        interview_id = uuid.UUID(state["interview_id"])
+        await embedding_repository.delete_embeddings_for_interview(
+            self._session,
+            interview_id,
+        )
+        rows = [
+            EmbeddingMetadata(
+                interview_id=document.interview_id,
+                document_id=document.id,
+                chunk_index=chunk.chunk_index,
+                chunk_text=chunk.chunk_text,
+                source_type=chunk.source_type,
+                page_number=chunk.page_number,
+                embedding=embedding,
+            )
+            for (document, chunk), embedding in zip(
+                self._rag_chunks,
+                self._rag_embeddings,
+                strict=True,
+            )
+        ]
+        await embedding_repository.create_embedding_metadata_bulk(self._session, rows)
+        return {
+            **state,
+            "rag_chunks_indexed": len(rows),
+        }
 
     async def load_interview_context(self, state: InterviewState) -> InterviewState:
         interview_id = uuid.UUID(state["interview_id"])
@@ -389,6 +502,12 @@ class InterviewGraphRunner:
 
 def build_interview_graph(runner: InterviewGraphRunner):
     graph = StateGraph(InterviewState)
+    graph.add_node("route_rag_preparation", runner.route_rag_preparation)
+    graph.add_node("ingest_cv_document", runner.ingest_cv_document)
+    graph.add_node("ingest_job_description", runner.ingest_job_description)
+    graph.add_node("chunk_documents", runner.chunk_documents)
+    graph.add_node("generate_embeddings", runner.generate_embeddings)
+    graph.add_node("store_vector_index", runner.store_vector_index)
     graph.add_node("load_interview_context", runner.load_interview_context)
     graph.add_node("analyze_candidate_profile", runner.analyze_candidate_profile)
     graph.add_node("generate_question", runner.generate_question)
@@ -398,7 +517,20 @@ def build_interview_graph(runner: InterviewGraphRunner):
     graph.add_node("report_generation", runner.report_generation)
     graph.add_node("persist_results", runner.persist_results)
 
-    graph.set_entry_point("load_interview_context")
+    graph.set_entry_point("route_rag_preparation")
+    graph.add_conditional_edges(
+        "route_rag_preparation",
+        route_after_rag_entry,
+        {
+            "prepare": "ingest_cv_document",
+            "skip": "load_interview_context",
+        },
+    )
+    graph.add_edge("ingest_cv_document", "ingest_job_description")
+    graph.add_edge("ingest_job_description", "chunk_documents")
+    graph.add_edge("chunk_documents", "generate_embeddings")
+    graph.add_edge("generate_embeddings", "store_vector_index")
+    graph.add_edge("store_vector_index", "load_interview_context")
     graph.add_conditional_edges(
         "load_interview_context",
         route_after_context_load,
@@ -423,6 +555,10 @@ def build_interview_graph(runner: InterviewGraphRunner):
     graph.add_edge("report_generation", "persist_results")
     graph.add_edge("persist_results", END)
     return graph.compile()
+
+
+def route_after_rag_entry(state: InterviewState) -> str:
+    return "prepare" if state.get("mode") == "start" else "skip"
 
 
 def route_after_context_load(state: InterviewState) -> str:
